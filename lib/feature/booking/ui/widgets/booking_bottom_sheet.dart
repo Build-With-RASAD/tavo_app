@@ -337,8 +337,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   ],
                 ),
               ),
-              _GuestSelector(
+              GuestSelector(
                 value: state.guestsCount,
+                min: 1,
+                max: state.maxGuests ?? 10,
                 onChanged: (value) {
                   context.read<CreateBookingCubit>().setGuestsCount(value);
                 },
@@ -941,14 +943,17 @@ class _StepData {
   _StepData(this.title, this.isCompleted);
 }
 
-class _GuestSelector extends StatelessWidget {
+class GuestSelector extends StatelessWidget {
   final int value;
   final ValueChanged<int> onChanged;
   final int min;
   final int max;
 
-  const _GuestSelector({
+  const GuestSelector({
+    super.key,
     required this.value,
+    required this.min,
+    required this.max,
     required this.onChanged,
   });
 
