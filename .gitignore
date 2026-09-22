@@ -33,6 +33,11 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Android release signing secrets (upload key). Never commit these.
+**/key.properties
+**/*.jks
+**/*.keystore
+
 # Symbolication related
 app.*.symbols
 

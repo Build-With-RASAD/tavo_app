@@ -78,9 +78,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icons/logo.svg"
-  adaptive_icon_background: "0xFFFFFFFF"
-  adaptive_icon_foreground: "assets/icons/logo.svg"
+  image_path: "assets/icons/logo_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icons/logo_icon.png"
   remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the

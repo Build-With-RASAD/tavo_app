@@ -1,0 +1,13 @@
+# Copy to `key.properties` (same folder) and fill in your upload-key values.
+# NEVER commit `key.properties`, `*.jks`, or `*.keystore` to version control.
+#
+# Generate an upload key once (keep the passwords safe — losing them
+# permanently locks you out of Play Store updates for this app):
+#   keytool -genkeypair -v -keystore tavo-upload-key.jks -alias tavo \
+#     -keyalg RSA -keysize 2048 -validity 10000
+# Then set storeFile to the keystore path (absolute, or relative to android/).
+
+storePassword=
+keyPassword=
+keyAlias=tavo
+storeFile=tavo-upload-key.jks
