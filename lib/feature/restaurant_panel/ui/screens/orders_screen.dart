@@ -1,0 +1,411 @@
+// lib/feature/restaurant_panel/ui/screens/orders_screen.dart
+
+import 'package:easy_localization/easy_localization.dart' hide TextDirection;
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:tavo/core/di/service_locator.dart';
+import 'package:tavo/core/theme/colors.dart';
+import 'package:tavo/core/theme/text_styles.dart';
+import 'package:tavo/core/widgets/state/async_state_view.dart';
+import 'package:tavo/core/widgets/status_badge.dart';
+import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/orders_state.dart';
+import 'package:tavo/feature/restaurant_panel/ui/widgets/order_card.dart';
+
+/// Staff panel orders: a status-filter chip row over the live list, with
+/// per-row status actions, a details sheet and an action sheet guarding the
+/// destructive cancel.
+///
+/// Builds its own [OrdersCubit] through get_it (the shell only supplies the
+/// restaurant id) and drives the three async states with [ListSkeleton] /
+/// [ErrorStateView] / [EmptyStateView] / content, mirroring
+/// `DashboardScreen`'s wiring. Action failures surface as a SnackBar while
+/// every row stays on screen (`OrdersLoaded.actionError`).
+class OrdersScreen extends StatelessWidget {
+  const OrdersScreen({super.key, required this.restaurantId});
+
+  final String restaurantId;
+
+  /// The filter row: `all` plus every status the backend accepts
+  /// (`GET /orders?status=`).
+  static const List<String> _filters = [
+    'all',
+    'pending',
+    'confirmed',
+    'preparing',
+    'ready',
+    'delivered',
+    'cancelled',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<OrdersCubit>(param1: restaurantId)..load(),
+      child: BlocConsumer<OrdersCubit, OrdersState>(
+        listener: (context, state) {
+          if (state is OrdersLoaded && state.actionError != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.actionError!),
+                backgroundColor: const Color(0xFFC62828),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                margin: EdgeInsets.all(16.w),
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          final cubit = context.read<OrdersCubit>();
+          final filter = state is OrdersLoaded ? state.filter : null;
+
+          return Scaffold(
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(context),
+                  _buildFilters(context, cubit, filter),
+                  Expanded(child: _buildBody(context, cubit, state)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+      child: Row(
+        children: [
+          Text('orders'.tr(), style: TextStyles.font20Black500Weight(context)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters(
+    BuildContext context,
+    OrdersCubit cubit,
+    String? filter,
+  ) {
+    return Padding(
+      padding: EdgeInsets.only(top: 12.h, bottom: 4.h),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        child: Row(
+          children: [
+            for (final status in _filters)
+              Padding(
+                padding: EdgeInsets.only(right: 8.w),
+                child: ChoiceChip(
+                  // Ruling: chips are addressed by key — labels collide with
+                  // the status badges of matching rows.
+                  key: ValueKey('orders_filter_$status'),
+                  label: Text(
+                    status == 'all'
+                        ? 'all'.tr()
+                        : orderStatusLabelKey(status).tr(),
+                  ),
+                  selected: (filter ?? 'all') == status,
+                  onSelected: (_) =>
+                      cubit.setFilter(status == 'all' ? null : status),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    OrdersCubit cubit,
+    OrdersState state,
+  ) {
+    if (state is OrdersError) {
+      return ErrorStateView(message: state.message, onRetry: cubit.load);
+    }
+    if (state is OrdersLoaded) {
+      if (state.orders.isEmpty) {
+        return EmptyStateView(
+          icon: Icons.receipt_long,
+          title: 'no_orders'.tr(),
+          onRetry: cubit.load,
+        );
+      }
+      return RefreshIndicator(
+        onRefresh: () => cubit.load(),
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(16.w),
+          itemCount: state.orders.length,
+          itemBuilder: (context, index) {
+            final order = state.orders[index];
+            return Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: OrderCard(
+                key: ValueKey('order_card_${order.id}'),
+                order: order,
+                acting: state.actingId == order.id,
+                onAction: (target) => _handleAction(context, order, target),
+                onTap: () => _openDetails(context, order),
+              ),
+            );
+          },
+        ),
+      );
+    }
+    // OrdersInitial / OrdersLoading.
+    return const ListSkeleton();
+  }
+
+  /// Runs one row action. Non-destructive targets go straight to the cubit;
+  /// `cancelled` first confirms through the [CancelOrderSheet] action sheet
+  /// (spec UI bar: destructive actions always confirm).
+  Future<void> _handleAction(
+    BuildContext context,
+    PanelOrder order,
+    String target,
+  ) async {
+    if (target == 'cancelled') {
+      final confirmed = await showModalBottomSheet<bool>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (_) => CancelOrderSheet(order: order),
+      );
+      if (confirmed != true) return;
+    }
+    if (!context.mounted) return;
+    context.read<OrdersCubit>().updateStatus(order.id, target);
+  }
+
+  void _openDetails(BuildContext context, PanelOrder order) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => OrderDetailsSheet(order: order),
+    );
+  }
+}
+
+/// Full breakdown of one order: header + status badge, line items
+/// (name, `qty × unitPrice`, line total), subtotal / tax / total rows, the
+/// payment pill and a close button.
+class OrderDetailsSheet extends StatelessWidget {
+  const OrderDetailsSheet({super.key, required this.order});
+
+  final PanelOrder order;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final paymentKey = paymentStatusLabelKey(order.paymentStatus);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
+      decoration: BoxDecoration(
+        color: ColorsManager.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'order_details'.tr(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                StatusBadge(status: order.orderStatus),
+              ],
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              order.orderNumber,
+              style: TextStyles.font12DarkGray400Weight(context),
+            ),
+            if (order.customerName.isNotEmpty) ...[
+              SizedBox(height: 2.h),
+              Text(
+                order.customerName,
+                style: TextStyles.font12DarkGray400Weight(context),
+              ),
+            ],
+            SizedBox(height: 16.h),
+            for (final line in order.items) _LineRow(line: line),
+            const Divider(height: 24),
+            _AmountRow(labelKey: 'subtotal', value: order.subtotal),
+            _AmountRow(labelKey: 'tax', value: order.tax),
+            _AmountRow(
+              labelKey: 'total',
+              value: order.totalPrice,
+              emphasize: true,
+            ),
+            if (paymentKey != null) ...[
+              SizedBox(height: 12.h),
+              StatusBadge(status: order.paymentStatus, label: paymentKey.tr()),
+            ],
+            SizedBox(height: 20.h),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('close'.tr()),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Action sheet for the destructive cancel: names the order and only sends
+/// `true` back when the confirmation button is tapped.
+class CancelOrderSheet extends StatelessWidget {
+  const CancelOrderSheet({super.key, required this.order});
+
+  final PanelOrder order;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
+      decoration: BoxDecoration(
+        color: ColorsManager.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'cancel'.tr(),
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            '${order.orderNumber} • ${order.customerName}',
+            style: TextStyles.font12DarkGray400Weight(context),
+          ),
+          SizedBox(height: 20.h),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('close'.tr()),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: ElevatedButton(
+                  key: const ValueKey('cancel_order_confirm'),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorsManager.redButton,
+                    foregroundColor: ColorsManager.white,
+                  ),
+                  child: Text('cancel'.tr()),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One line item row of the details sheet: name + `qty × unitPrice` on the
+/// left, the line total on the right.
+class _LineRow extends StatelessWidget {
+  const _LineRow({required this.line});
+
+  final OrderLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.name,
+                  style: TextStyles.font14Black400Weight(context),
+                ),
+                SizedBox(height: 2.h),
+                Text(
+                  '${line.quantity} × ${formatOrderAmount(line.unitPrice)}',
+                  style: TextStyles.font12DarkGray400Weight(context),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Text(
+            formatOrderAmount(line.lineTotal),
+            style: TextStyles.font14Black500Weight(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One `label … amount` row (subtotal / tax / total) of the details sheet.
+class _AmountRow extends StatelessWidget {
+  const _AmountRow({
+    required this.labelKey,
+    required this.value,
+    this.emphasize = false,
+  });
+
+  final String labelKey;
+  final double value;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasize
+        ? TextStyles.font16Black500Weight(context)
+        : TextStyles.font14DarkGray400Weight(context);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 6.h),
+      child: Row(
+        children: [
+          Expanded(child: Text(labelKey.tr(), style: style)),
+          Text(formatOrderAmount(value), style: style),
+        ],
+      ),
+    );
+  }
+}
