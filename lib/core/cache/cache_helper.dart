@@ -15,6 +15,7 @@ class CacheHelper {
   static const String _userImageKey = 'user_image';
   static const String _staffModeKey = 'staff_mode';
   static const String _staffRestaurantsKey = 'staff_restaurants';
+  static const String _activeRestaurantKey = 'active_restaurant_id';
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -98,6 +99,7 @@ class CacheHelper {
     await _prefs?.remove(_userImageKey);
     await _prefs?.remove(_staffModeKey);
     await _prefs?.remove(_staffRestaurantsKey);
+    await _prefs?.remove(_activeRestaurantKey);
     return true;
   }
 
@@ -123,5 +125,13 @@ class CacheHelper {
 
   static String? getStaffRestaurants() {
     return _prefs?.getString(_staffRestaurantsKey);
+  }
+
+  static Future<bool> setActiveRestaurant(String id) async {
+    return await _prefs?.setString(_activeRestaurantKey, id) ?? false;
+  }
+
+  static String? getActiveRestaurant() {
+    return _prefs?.getString(_activeRestaurantKey);
   }
 }

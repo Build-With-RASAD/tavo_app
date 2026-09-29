@@ -4,6 +4,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 Map<String, dynamic> _json({
   String id = '6a9e23a52204c50612306408',
   String role = 'owner',
+  List<String> permissions = const ['full_access'],
 }) =>
     {
       'restaurantId': id,
@@ -11,7 +12,7 @@ Map<String, dynamic> _json({
       'nameEn': 'Burger Lab',
       'nameAr': 'برغر لاب',
       'role': role,
-      'permissions': ['full_access'],
+      'permissions': permissions,
       'status': 'active',
     };
 
@@ -60,5 +61,17 @@ void main() {
     expect(restored.nameEn, r.nameEn);
     expect(restored.role, r.role);
     expect(restored.permissions, r.permissions);
+  });
+
+  test('canManage: owner and manager and full_access only', () {
+    expect(StaffRestaurant.fromJson(_json()).canManage, isTrue);            // owner
+    expect(StaffRestaurant.fromJson(_json(role: 'manager')).canManage, isTrue);
+    expect(StaffRestaurant.fromJson(_json(role: 'staff', permissions: [])).canManage, isFalse);
+    expect(
+      StaffRestaurant.fromJson(
+              _json(role: 'staff')..['permissions'] = ['full_access'])
+          .canManage,
+      isTrue,
+    );
   });
 }

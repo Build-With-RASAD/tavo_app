@@ -23,6 +23,13 @@ class StaffRestaurant {
   /// `isRestaurantOwner` derivation: owner or manager).
   bool get isManager => role == 'owner' || role == 'manager';
 
+  /// UI gating: owner/manager (and anyone holding full_access) may manage
+  /// venue content; plain staff operate (status actions, read-only views).
+  bool get canManage =>
+      role == 'owner' ||
+      role == 'manager' ||
+      permissions.contains('full_access');
+
   String displayName(String locale) {
     if (locale == 'ar') return nameAr.isNotEmpty ? nameAr : nameEn;
     return nameEn.isNotEmpty ? nameEn : nameAr;
