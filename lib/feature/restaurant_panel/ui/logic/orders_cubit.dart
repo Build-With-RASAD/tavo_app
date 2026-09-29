@@ -109,7 +109,11 @@ class OrdersCubit extends Cubit<OrdersState> {
       actingId: id,
     ));
     try {
-      final updated = await _repo.updateOrderStatus(id: id, status: status);
+      final updated = await _repo.updateOrderStatus(
+        restaurantId: restaurantId,
+        id: id,
+        status: status,
+      );
       if (isClosed) return;
       emit(OrdersLoaded(
         orders: [for (final o in current.orders) o.id == id ? updated : o],

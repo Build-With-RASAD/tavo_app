@@ -77,8 +77,13 @@ class RestaurantPanelRepo {
     }
   }
 
-  /// `PATCH /restaurant-owner/orders/:id/status` with `{status}`.
+  /// `PATCH /restaurant-owner/orders/:id/status?restaurantId=…` with `{status}`.
+  ///
+  /// [restaurantId] is mandatory like every other panel call: the backend
+  /// silently substitutes the FIRST venue when it is missing (cross-venue
+  /// wrong-target risk on the status action).
   Future<PanelOrder> updateOrderStatus({
+    required String restaurantId,
     required String id,
     required String status,
   }) async {
@@ -86,6 +91,7 @@ class RestaurantPanelRepo {
       final response = await _apiService.patch(
         ApiConstants.panelOrderStatus(id),
         data: {'status': status},
+        queryParameters: {'restaurantId': restaurantId},
       );
       final payload = _payloadOf(response.data);
       if (payload is Map) {

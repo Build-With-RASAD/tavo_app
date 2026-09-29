@@ -27,6 +27,7 @@ class FakePanelRepo extends RestaurantPanelRepo {
   String? failActionFor;
   String? lastStatusFilter;
   int lastPage = 1;
+  String? lastActionRestaurantId;
 
   @override
   Future<PagedResult<PanelOrder>> getOrders(
@@ -48,8 +49,12 @@ class FakePanelRepo extends RestaurantPanelRepo {
   }
 
   @override
-  Future<PanelOrder> updateOrderStatus(
-      {required String id, required String status}) async {
+  Future<PanelOrder> updateOrderStatus({
+    required String restaurantId,
+    required String id,
+    required String status,
+  }) async {
+    lastActionRestaurantId = restaurantId;
     if (failActionFor == id) {
       throw 'Cannot change status from cancelled to $status';
     }
@@ -125,6 +130,8 @@ void main() {
     );
     await cubit.updateStatus('a', 'confirmed');
     await expectation;
+    expect(repo.lastActionRestaurantId, 'r1',
+        reason: 'cubit must forward ITS venue — cross-venue wrong-target risk');
   });
 
   test('failed updateStatus keeps rows and surfaces actionError', () async {

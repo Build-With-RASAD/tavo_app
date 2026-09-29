@@ -12,6 +12,7 @@ class FakeApiService extends ApiService {
   String? lastGetPath;
   Map<String, dynamic>? lastGetQuery;
   String? lastPatchPath;
+  Map<String, dynamic>? lastPatchQuery;
   dynamic lastPatchBody;
 
   @override
@@ -30,6 +31,7 @@ class FakeApiService extends ApiService {
   Future<Response> patch(String path,
       {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
     lastPatchPath = path;
+    lastPatchQuery = queryParameters;
     lastPatchBody = data;
     if (patchError != null) throw patchError!;
     return Response(
@@ -117,10 +119,12 @@ void main() {
       'data': {'_id': 'o1', 'orderNumber': 'ORD-1', 'orderStatus': 'confirmed'},
     };
 
-    final updated =
-        await repo.updateOrderStatus(id: 'o1', status: 'confirmed');
+    final updated = await repo.updateOrderStatus(
+        restaurantId: 'r1', id: 'o1', status: 'confirmed');
 
     expect(api.lastPatchPath, '/v1/api/restaurant-owner/orders/o1/status');
+    expect(api.lastPatchQuery!['restaurantId'], 'r1',
+        reason: 'backend silently falls back to the FIRST venue without it');
     expect(api.lastPatchBody, {'status': 'confirmed'});
     expect(updated.orderStatus, 'confirmed');
   });
@@ -140,7 +144,9 @@ void main() {
       ),
     );
 
-    expect(repo.updateOrderStatus(id: 'o1', status: 'confirmed'),
+    expect(
+        repo.updateOrderStatus(
+            restaurantId: 'r1', id: 'o1', status: 'confirmed'),
         throwsA('Cannot change status from cancelled to confirmed'));
   });
 }
