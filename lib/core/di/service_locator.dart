@@ -18,6 +18,9 @@ import 'package:tavo/feature/restaurant/data/repo/order_repo.dart';
 import 'package:tavo/feature/restaurant/data/repo/restaurant_details_repo.dart';
 import 'package:tavo/feature/restaurant/data/repo/restaurants_repo.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
+import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/dashboard_cubit.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/menu_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/menu_item_specification_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/order_cubit.dart';
@@ -96,6 +99,18 @@ Future<void> initServiceLocator() async {
   getIt.registerFactoryParam<RestaurantHomeCubit, String, void>(
     (restaurantId, _) =>
         RestaurantHomeCubit(getIt<RestaurantAuthRepo>(), restaurantId: restaurantId),
+  );
+
+  // Staff panel (dashboard / orders / reservations tabs of the shell).
+  getIt.registerFactory<RestaurantPanelRepo>(
+    () => RestaurantPanelRepo(getIt<ApiService>()),
+  );
+  getIt.registerFactory<DashboardCubit>(
+    () => DashboardCubit(getIt<RestaurantPanelRepo>()),
+  );
+  getIt.registerFactoryParam<OrdersCubit, String, void>(
+    (restaurantId, _) =>
+        OrdersCubit(getIt<RestaurantPanelRepo>(), restaurantId: restaurantId),
   );
 
   getIt.registerFactory<BookingsCubit>(

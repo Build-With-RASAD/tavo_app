@@ -9,7 +9,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/auth/ui/screens/login_screen.dart';
 import 'package:tavo/feature/home/ui/screens/main_nav_screen.dart';
 import 'package:tavo/feature/onboarding/ui/screens/onboarding_screen.dart';
-import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_home_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/staff_shell_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -63,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen>
     Widget nextScreen;
 
     if (isLoggedIn && CacheHelper.isStaffMode()) {
-      nextScreen = RestaurantHomeScreen(
+      nextScreen = StaffShellScreen(
         restaurants: _cachedStaffRestaurants(),
       );
     } else if (isLoggedIn) {

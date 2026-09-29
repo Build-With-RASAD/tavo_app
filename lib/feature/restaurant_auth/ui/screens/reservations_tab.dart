@@ -1,3 +1,5 @@
+// lib/feature/restaurant_auth/ui/screens/reservations_tab.dart
+
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,102 +8,41 @@ import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/helpers/utils/short_id.dart';
 import 'package:tavo/core/helpers/utils/spacing.dart';
 import 'package:tavo/core/theme/colors.dart';
-import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:tavo/core/widgets/status_badge.dart';
 import 'package:tavo/feature/booking/data/model/booking_model.dart';
-import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_cubit.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_state.dart';
-import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_login_screen.dart';
 
-/// Staff landing: pick a venue (when several), see its reservations and move
-/// them through confirm → seat → complete (or cancel).
-class RestaurantHomeScreen extends StatefulWidget {
-  final List<StaffRestaurant> restaurants;
+/// Reservations tab of the staff shell: the former `RestaurantHomeScreen`
+/// body (venue picker, app bar and logout removed — those live in
+/// [StaffShellScreen] now) driving one venue's bookings through
+/// `RestaurantHomeCubit` with confirm → seat → complete (or cancel) actions.
+///
+/// The status pill is the shared [StatusBadge] (ruling): its `colorFor`
+/// palette already covers every reservation status.
+class ReservationsTab extends StatelessWidget {
+  const ReservationsTab({super.key, required this.restaurantId});
 
-  const RestaurantHomeScreen({super.key, this.restaurants = const []});
-
-  @override
-  State<RestaurantHomeScreen> createState() => _RestaurantHomeScreenState();
-}
-
-class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
-  late String _selectedId;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedId =
-        widget.restaurants.isNotEmpty ? widget.restaurants.first.restaurantId : '';
-  }
-
-  Future<void> _onLogout() async {
-    await getIt<RestaurantAuthRepo>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RestaurantLoginScreen()),
-      (route) => false,
-    );
-  }
+  final String restaurantId;
 
   @override
   Widget build(BuildContext context) {
-    final locale = context.locale.languageCode;
-    final selected = widget.restaurants
-        .where((r) => r.restaurantId == _selectedId)
-        .firstOrNull;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(selected?.displayName(locale) ?? 'my_reservations'.tr()),
-        actions: [
-          IconButton(
-            tooltip: 'logout'.tr(),
-            icon: const Icon(Icons.logout),
-            onPressed: _onLogout,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (widget.restaurants.length > 1) _buildVenuePicker(locale),
-          Expanded(
-            child: _selectedId.isEmpty
-                ? Center(child: Text('no_data'.tr()))
-                : BlocProvider(
-                    key: ValueKey(_selectedId),
-                    create: (_) =>
-                        getIt<RestaurantHomeCubit>(param1: _selectedId)
-                          ..loadReservations(),
-                    child: _buildReservations(context),
-                  ),
-          ),
-        ],
-      ),
+    if (restaurantId.isEmpty) return Center(child: Text('no_data'.tr()));
+    return BlocProvider(
+      create: (_) =>
+          getIt<RestaurantHomeCubit>(param1: restaurantId)..loadReservations(),
+      child: const _ReservationsList(),
     );
   }
+}
 
-  Widget _buildVenuePicker(String locale) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      child: Row(
-        children: [
-          for (final r in widget.restaurants)
-            Padding(
-              padding: EdgeInsets.only(right: 8.w),
-              child: ChoiceChip(
-                label: Text(r.displayName(locale)),
-                selected: r.restaurantId == _selectedId,
-                onSelected: (_) =>
-                    setState(() => _selectedId = r.restaurantId),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+/// The list itself — kept as its own widget so `context.read` resolves
+/// against the [BlocProvider] above it.
+class _ReservationsList extends StatelessWidget {
+  const _ReservationsList();
 
-  Widget _buildReservations(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return BlocConsumer<RestaurantHomeCubit, RestaurantHomeState>(
       listener: (context, state) {
         if (state is RestaurantHomeLoaded && state.actionError != null) {
@@ -194,7 +135,7 @@ class _ReservationCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                _StatusBadge(status: booking.status, locale: locale),
+                StatusBadge(status: booking.status),
               ],
             ),
             verticalSpace(4),
@@ -255,77 +196,5 @@ class _ReservationCard extends StatelessWidget {
             )
           : Text(actionLabelKey(action).tr()),
     );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String status;
-  final String locale;
-
-  const _StatusBadge({required this.status, required this.locale});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: _background,
-        borderRadius: BorderRadius.circular(20.r),
-      ),
-      child: Text(
-        _label(context),
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: _foreground,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-
-  String _label(BuildContext context) {
-    switch (status) {
-      case 'pending':
-        return 'pending'.tr();
-      case 'confirmed':
-        return 'confirmed'.tr();
-      case 'seated':
-        return 'seated'.tr();
-      case 'completed':
-        return 'completed'.tr();
-      case 'cancelled':
-        return 'cancelled'.tr();
-      default:
-        return status;
-    }
-  }
-
-  Color get _background {
-    switch (status) {
-      case 'confirmed':
-      case 'completed':
-        return const Color(0xFFE8F7EB);
-      case 'seated':
-        return const Color(0xFFE3F2FD);
-      case 'cancelled':
-      case 'no_show':
-        return const Color(0xFFFDECEA);
-      default:
-        return const Color(0xFFFFF8E1);
-    }
-  }
-
-  Color get _foreground {
-    switch (status) {
-      case 'confirmed':
-      case 'completed':
-        return const Color(0xFF22A83A);
-      case 'seated':
-        return const Color(0xFF1565C0);
-      case 'cancelled':
-      case 'no_show':
-        return const Color(0xFFC62828);
-      default:
-        return const Color(0xFFF9A825);
-    }
   }
 }

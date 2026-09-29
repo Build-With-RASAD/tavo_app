@@ -12,14 +12,26 @@ import 'package:tavo/feature/booking/data/model/booking_model.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_cubit.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_cubit.dart';
-import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_home_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/reservations_tab.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_login_screen.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_otp_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/staff_shell_screen.dart';
+import 'package:tavo/feature/restaurant_panel/data/model/dashboard_stats.dart';
+import 'package:tavo/feature/restaurant_panel/data/model/paged_result.dart';
+import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
+import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/dashboard_cubit.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
+import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 
 import 'helpers/app_shell.dart';
 
 /// End-to-end widget coverage for the staff flow:
-/// login → OTP → home → confirm action.
+/// login → OTP → shell → confirm action.
+///
+/// Task 11: the OTP step now lands on `StaffShellScreen` (dashboard tab by
+/// default) and the confirm action is covered through `ReservationsTab`
+/// directly; every assertion from the pre-shell flow survives.
 class FakeStaffRepo extends RestaurantAuthRepo {
   FakeStaffRepo() : super(ApiService());
 
@@ -81,6 +93,38 @@ class FakeStaffRepo extends RestaurantAuthRepo {
   }
 }
 
+/// Benign panel repo for the shell's dashboard/orders tabs: no network, no
+/// rows — the flow's assertions live on the reservations side.
+class FakePanelRepo extends RestaurantPanelRepo {
+  FakePanelRepo() : super(ApiService());
+
+  @override
+  Future<DashboardStats> getDashboard(String restaurantId) async {
+    return DashboardStats.fromJson(const {
+      'orders': {'total': 0, 'pending': 0, 'newOrders': 0, 'avgOrderValue': 0},
+      'reservations': {'total': 0},
+      'revenue': {'total': 0, 'thisMonth': 0},
+      'reviews': {'averageRating': 0, 'recent': <dynamic>[]},
+    });
+  }
+
+  @override
+  Future<PagedResult<PanelOrder>> getOrders(
+    String restaurantId, {
+    int page = 1,
+    int limit = 20,
+    String? status,
+  }) async {
+    return const PagedResult(
+      items: <PanelOrder>[],
+      page: 1,
+      limit: 20,
+      total: 0,
+      pages: 1,
+    );
+  }
+}
+
 const _venue = StaffRestaurant(
   restaurantId: 'r1',
   name: 'برغر لاب',
@@ -112,12 +156,21 @@ void main() {
 
   setUp(() {
     repo = FakeStaffRepo()..venues = [_venue];
+    final panelRepo = FakePanelRepo();
     getIt.registerFactory<RestaurantAuthCubit>(
       () => RestaurantAuthCubit(repo),
     );
     getIt.registerFactoryParam<RestaurantHomeCubit, String, void>(
       (restaurantId, _) =>
           RestaurantHomeCubit(repo, restaurantId: restaurantId),
+    );
+    // The OTP step now lands on StaffShellScreen, which builds the
+    // dashboard / orders tabs through get_it.
+    getIt.registerFactory<RestaurantPanelRepo>(() => panelRepo);
+    getIt.registerFactory<DashboardCubit>(() => DashboardCubit(panelRepo));
+    getIt.registerFactoryParam<OrdersCubit, String, void>(
+      (restaurantId, _) =>
+          OrdersCubit(panelRepo, restaurantId: restaurantId),
     );
   });
 
@@ -143,7 +196,7 @@ void main() {
     expect(find.byType(PinCodeTextField), findsOneWidget);
   });
 
-  testWidgets('correct OTP opens the restaurant home with reservations',
+  testWidgets('correct OTP opens the restaurant shell with reservations',
       (tester) async {
     repo.reservations = [_booking()];
 
@@ -171,23 +224,33 @@ void main() {
     // navigation transition must be waited out without pumpAndSettle.
     await pumpUntil(
       tester,
-      () => find.byType(RestaurantHomeScreen).evaluate().isNotEmpty,
+      () => find.byType(StaffShellScreen).evaluate().isNotEmpty,
     );
     await tester.pump(const Duration(milliseconds: 500));
-    await pumpUntil(tester, () => find.text('Layla Haddad').evaluate().isNotEmpty);
+    // IndexedStack keeps every tab mounted; a hidden tab is offstage for
+    // finders, so the reservations row is asserted with skipOffstage: false.
+    await pumpUntil(
+      tester,
+      () => find
+          .text('Layla Haddad', skipOffstage: false)
+          .evaluate()
+          .isNotEmpty,
+    );
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(RestaurantHomeScreen), findsOneWidget);
-    expect(find.text('Layla Haddad'), findsOneWidget);
+    // Task 11: the shell replaces the old single-venue home and opens on
+    // its default (dashboard) tab; the guest row lives in the reservations
+    // tab, which IndexedStack keeps mounted.
+    expect(find.byType(StaffShellScreen), findsOneWidget);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(find.text('Layla Haddad', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('tapping Confirm flips a pending row to confirmed',
       (tester) async {
     repo.reservations = [_booking()];
 
-    await tester.pumpWidget(
-      appShell(const RestaurantHomeScreen(restaurants: [_venue])),
-    );
+    await tester.pumpWidget(appShell(const ReservationsTab(restaurantId: 'r1')));
     await tester.pumpAndSettle();
 
     expect(find.text('Layla Haddad'), findsOneWidget);

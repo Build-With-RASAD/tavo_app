@@ -9,7 +9,7 @@ import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/helpers/utils/spacing.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_cubit.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_state.dart';
-import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_home_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/staff_shell_screen.dart';
 
 /// Staff OTP step. The cubit is handed over via `BlocProvider.value` from
 /// [RestaurantLoginScreen], exactly like the customer [OtpScreen] flow.
@@ -74,7 +74,7 @@ class _RestaurantOtpScreenState extends State<RestaurantOtpScreen> {
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            RestaurantHomeScreen(restaurants: state.restaurants),
+            StaffShellScreen(restaurants: state.restaurants),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curved =
               CurvedAnimation(parent: animation, curve: Curves.easeOut);
