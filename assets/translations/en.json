@@ -359,5 +359,21 @@
   "seated": "Seated",
   "my_reservations": "Reservations",
   "no_reservations": "No reservations yet",
-  "select_restaurant": "Select restaurant"
+  "select_restaurant": "Select restaurant",
+  "dashboard": "Dashboard",
+  "orders": "Orders",
+  "preparing": "Preparing",
+  "ready": "Ready",
+  "delivered": "Delivered",
+  "no_orders": "No orders yet",
+  "revenue_this_month": "Revenue this month",
+  "avg_rating": "Avg. rating",
+  "new_orders": "New orders",
+  "order_details": "Order details",
+  "payment_paid": "Paid",
+  "payment_unpaid": "Unpaid",
+  "payment_failed": "Failed",
+  "payment_refunded": "Refunded",
+  "switch_restaurant": "Switch restaurant",
+  "recent_reviews": "Recent reviews"
 }

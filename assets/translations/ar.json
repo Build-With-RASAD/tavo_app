@@ -363,5 +363,21 @@
   "seated": "تم الإجلاس",
   "my_reservations": "الحجوزات",
   "no_reservations": "لا توجد حجوزات بعد",
-  "select_restaurant": "اختر المطعم"
+  "select_restaurant": "اختر المطعم",
+  "dashboard": "لوحة التحكم",
+  "orders": "الطلبات",
+  "preparing": "قيد التحضير",
+  "ready": "جاهز",
+  "delivered": "تم التوصيل",
+  "no_orders": "لا توجد طلبات بعد",
+  "revenue_this_month": "إيرادات هذا الشهر",
+  "avg_rating": "متوسط التقييم",
+  "new_orders": "طلبات جديدة",
+  "order_details": "تفاصيل الطلب",
+  "payment_paid": "مدفوع",
+  "payment_unpaid": "غير مدفوع",
+  "payment_failed": "فشل الدفع",
+  "payment_refunded": "مسترد",
+  "switch_restaurant": "تبديل المطعم",
+  "recent_reviews": "أحدث التقييمات"
 }
