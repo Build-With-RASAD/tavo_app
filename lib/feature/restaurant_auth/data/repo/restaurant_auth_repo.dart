@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/network/api_constants.dart';
+import 'package:tavo/core/network/api_error_parser.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/auth/ui/data/models/auth_response.dart';
 import 'package:tavo/feature/auth/ui/data/models/login_request.dart';
@@ -38,7 +39,7 @@ class RestaurantAuthRepo {
       await CacheHelper.setCountryCode(request.countryCode);
       return _parseAuth(response.data);
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw parseDioError(e);
     } catch (e) {
       throw e.toString();
     }
@@ -74,7 +75,7 @@ class RestaurantAuthRepo {
       }
       return auth;
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw parseDioError(e);
     } catch (e) {
       throw e.toString();
     }
@@ -97,7 +98,7 @@ class RestaurantAuthRepo {
       }
       return [];
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw parseDioError(e);
     } catch (e) {
       throw e.toString();
     }
@@ -125,7 +126,7 @@ class RestaurantAuthRepo {
           ? data['message'].toString()
           : 'Failed to update reservation';
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw parseDioError(e);
     } catch (e) {
       throw e.toString();
     }
@@ -146,36 +147,5 @@ class RestaurantAuthRepo {
       return AuthResponse.fromJson(data);
     }
     return AuthResponse(success: false, message: 'Unknown response format');
-  }
-
-  String _handleDioError(DioException e) {
-    if (e.response?.data != null) {
-      final data = e.response?.data;
-      if (data is String && data.contains('<!DOCTYPE html>')) {
-        return 'API endpoint not found';
-      }
-      if (data is String) return data;
-      if (data is Map<String, dynamic>) {
-        if (data['errors'] != null && data['errors'] is List) {
-          final errors = data['errors'] as List;
-          if (errors.isNotEmpty) {
-            return errors.map((e) => e['msg']?.toString() ?? '').join(', ');
-          }
-        }
-        return data['message']?.toString() ??
-            data['error']?.toString() ??
-            'Something went wrong';
-      }
-    }
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return 'Connection timeout';
-      case DioExceptionType.connectionError:
-        return 'No internet connection';
-      default:
-        return 'Something went wrong';
-    }
   }
 }

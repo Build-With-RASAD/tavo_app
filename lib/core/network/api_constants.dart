@@ -26,4 +26,10 @@ class ApiConstants {
     String date,
     String time,
   ) => '/v1/api/availability/restaurant/$restaurantId/$date/$time';
+
+  static const String panelBase = '/v1/api/restaurant-owner';
+  static const String panelVenues = panelBase; // GET /
+  static const String panelDashboard = '$panelBase/dashboard';
+  static const String panelOrders = '$panelBase/orders';
+  static String panelOrderStatus(String id) => '$panelBase/orders/$id/status';
 }
