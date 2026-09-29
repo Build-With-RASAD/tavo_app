@@ -111,11 +111,18 @@ Empty, as recorded in the controller's expectation. Diagnostic follow-up (also r
 
 ## 4. Backend deploy record
 
-> **Backend deploy: NOT DEPLOYED — awaiting user approval.**
+> **Backend deploy: DEPLOYED** — user approved 2026-09-30.
 
-- The Task 1 backend fix (`fix(restaurant-panel): read orderStatus in updateOrderStatus` + amended-scope enum/filter/dashboard-cast changes) exists **only as local commits in the outer `tavo` repo**. Nothing was pushed; `pm2` was not touched; Steps 5/6 of the brief were **not** run by this session (deploy-gated on the user).
-- Consequence, recorded rather than failed: §3.1 dashboard counts 0 and §3.3/§3.4 empty status filters are **pre-deploy known-broken behavior of the old server build**, not regressions. All §3 requests were GETs (read-only); **no PATCH was sent**.
-- **Steps 5 and 6 (post-deploy proof, including the `from undefined` → `from <status>` PATCH check and dashboard counts > 0) will be appended here by the controller after the user answers.**
+- Pushed outer repo `main` `eabdce4..bb3d96e` → GitHub (`ABWABDIGITAL/tavo`, redirected to `Build-With-RASAD/tavo`).
+- Server `root@46.202.134.87`: `cd ~/tavo && git pull` (fast-forward `eabdce4..bb3d96e`, 10 files: enum fix, `orderStatus` service fixes, 2 new test files, plan/spec docs) → `pm2 restart tavo` (verified online, serving `:4321`).
+- §3 pre-deploy outputs remain valid as the **before** snapshot (dashboard hard-0, empty status filters — old server build).
+
+### Post-deploy proofs (live, run by the controller)
+
+1. **Rejected transition (non-mutating):** `PATCH /v1/api/restaurant-owner/orders/6a9e23d92204c5061230acde/status {"restaurantId":"…","status":"confirmed"}` on cancelled ORD-2026-0155 → `HTTP 400 {"success":false,"message":"Cannot change status from cancelled to confirmed"}` — pre-deploy this returned `Cannot change status from undefined to cancelled`. Order re-verified still `cancelled`; nothing mutated.
+2. **Dashboard counts:** `GET …/dashboard?restaurantId=…` → `orders {total:3, confirmed:2, cancelled:1}`, `reservations {total:3, pending:1, seated:1}` (pre-deploy: all 0 — ObjectId-cast + `orderStatus` fixes live).
+3. **Status filter:** `GET …/orders?restaurantId=…&status=confirmed` → exactly the 2 confirmed orders in `data.data` (pre-deploy: always empty).
+4. **Brief Step 6 (real forward transition): skipped by explicit user decision** — the rejected-PATCH proof above demonstrates the fix without mutating demo data.
 
 ---
 
