@@ -9,6 +9,7 @@ import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/constants/app_assets.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/localization/locale_keys.dart';
+import 'package:tavo/core/network/api_constants.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/core/theme/theme_extensions.dart';
@@ -370,9 +371,7 @@ class _ProfileView extends StatelessWidget {
   Widget _buildAvatar(ProfileState state, double size) {
     final imageUrl = state.user?.image;
     if (imageUrl != null && imageUrl.isNotEmpty) {
-      String fullUrl = imageUrl.startsWith('http')
-          ? imageUrl
-          : 'http://46.202.134.87:4321$imageUrl';
+      final fullUrl = ApiConstants.absoluteUrl(imageUrl);
       return ClipOval(
         child: CachedNetworkImage(
           imageUrl: fullUrl,

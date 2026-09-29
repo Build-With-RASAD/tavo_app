@@ -1,7 +1,12 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'http://46.202.134.87:4321';
+  static const String baseUrl = 'https://tavo.abwabdigital.com';
+
+  /// Resolves a backend path (e.g. `/uploads/x.jpg`) against [baseUrl].
+  /// Absolute URLs pass through untouched.
+  static String absoluteUrl(String path) =>
+      path.startsWith('http') ? path : '$baseUrl$path';
   static const String register = '/v1/api/auth/register';
   static const String login = '/v1/api/auth/login';
   static const String verifyOtp = '/v1/api/auth/verify-otp';

@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tavo/core/constants/app_assets.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/localization/locale_keys.dart';
+import 'package:tavo/core/network/api_constants.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/widgets/primary/auth_text_form_field.dart';
 import 'package:tavo/feature/Profile/ui/logic/cubit/profile_cubit.dart';
@@ -510,10 +511,7 @@ class _PersonalInfoViewState extends State<_PersonalInfoView> {
   Widget _buildAvatar(ProfileState state) {
     final imageUrl = state.user?.image;
     if (imageUrl != null && imageUrl.isNotEmpty) {
-      String fullUrl = imageUrl;
-      if (!imageUrl.startsWith('http')) {
-        fullUrl = 'http://46.202.134.87:4321$imageUrl';
-      }
+      final fullUrl = ApiConstants.absoluteUrl(imageUrl);
       return ClipOval(
         child: CachedNetworkImage(
           imageUrl: fullUrl,

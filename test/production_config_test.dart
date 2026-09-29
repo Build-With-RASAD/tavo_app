@@ -10,12 +10,26 @@ import 'package:tavo/core/network/api_constants.dart';
 /// therefore always failed.
 void main() {
   group('Production configuration', () {
-    test('API base URL points at the Tavo backend (same as tavo-app)', () {
-      expect(ApiConstants.baseUrl, 'http://46.202.134.87:4321');
+    test('API base URL points at the Tavo backend over HTTPS domain', () {
+      expect(ApiConstants.baseUrl, 'https://tavo.abwabdigital.com');
     });
 
     test('base URL has no trailing slash (would break path joins)', () {
       expect(ApiConstants.baseUrl.endsWith('/'), isFalse);
+    });
+
+    test('absoluteUrl prefixes relative paths with the API base URL', () {
+      expect(
+        ApiConstants.absoluteUrl('/uploads/avatar.jpg'),
+        'https://tavo.abwabdigital.com/uploads/avatar.jpg',
+      );
+    });
+
+    test('absoluteUrl leaves already-absolute URLs untouched', () {
+      expect(
+        ApiConstants.absoluteUrl('https://cdn.example.com/x.png'),
+        'https://cdn.example.com/x.png',
+      );
     });
 
     test('native splash logo asset exists (flutter_native_splash input)', () {
