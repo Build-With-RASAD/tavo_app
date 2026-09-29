@@ -347,7 +347,7 @@ class _SignupScreenContentState extends State<_SignupScreenContent> {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.tavo',
+                    userAgentPackageName: 'com.rasad.tavo',
                   ),
                   MarkerLayer(
                     markers: [

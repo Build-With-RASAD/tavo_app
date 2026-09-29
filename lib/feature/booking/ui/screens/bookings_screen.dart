@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/di/service_locator.dart';
+import 'package:tavo/core/helpers/utils/short_id.dart';
 import 'package:tavo/core/localization/locale_keys.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
@@ -28,6 +29,11 @@ class BookingsScreen extends StatefulWidget {
 class _BookingsScreenState extends State<BookingsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+
+  /// Whether the details loading sheet is currently presented. The details
+  /// listener must only pop when it is — otherwise (sheet already dismissed
+  /// by the user) the pop removes the screen itself.
+  bool _loadingSheetOpen = false;
 
   @override
   void initState() {
@@ -60,7 +66,10 @@ class _BookingsScreenState extends State<BookingsScreen>
                 child: BlocConsumer<BookingsCubit, BookingsState>(
                   listener: (context, state) {
                     if (state.selectedBooking != null) {
-                      Navigator.of(context).pop();
+                      if (_loadingSheetOpen) {
+                        Navigator.of(context).pop();
+                        _loadingSheetOpen = false;
+                      }
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -74,7 +83,10 @@ class _BookingsScreenState extends State<BookingsScreen>
                     }
 
                     if (state.detailsError != null) {
-                      Navigator.of(context).pop();
+                      if (_loadingSheetOpen) {
+                        Navigator.of(context).pop();
+                        _loadingSheetOpen = false;
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(state.detailsError!),
@@ -141,11 +153,12 @@ class _BookingsScreenState extends State<BookingsScreen>
   }
 
   void _onViewDetails(BuildContext context, String orderId) {
+    _loadingSheetOpen = true;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => const OrderDetailsLoadingSheet(),
-    );
+    ).whenComplete(() => _loadingSheetOpen = false);
     context.read<BookingsCubit>().loadBookingDetails(orderId);
   }
 
@@ -285,7 +298,7 @@ class _BookingsList extends StatelessWidget {
                 return BookingCard(
                   bookingId: b.order?.orderNumber.isNotEmpty == true
                       ? b.order!.orderNumber
-                      : b.id.substring(0, 8).toUpperCase(),
+                      : shortId(b.id),
                   restaurantName: b.getName(locale),
                   logoUrl: b.restaurantLogoUrl,
                   total: b.order?.totalPrice ?? 0,

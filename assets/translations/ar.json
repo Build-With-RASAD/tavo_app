@@ -355,5 +355,13 @@
   "your_table_reserved": "تم حجز طاولتك!",
   "select_date": "اختر التاريخ",
   "select_time": "اختر الوقت",
-  "date_and_time": "التاريخ والوقت"
+  "date_and_time": "التاريخ والوقت",
+  "restaurant_login_title": "دخول المطاعم",
+  "restaurant_login_subtitle": "سجّل الدخول برقم هاتف الموظف لإدارة مطعمك",
+  "seat": "إجلاس",
+  "complete": "إتمام",
+  "seated": "تم الإجلاس",
+  "my_reservations": "الحجوزات",
+  "no_reservations": "لا توجد حجوزات بعد",
+  "select_restaurant": "اختر المطعم"
 }

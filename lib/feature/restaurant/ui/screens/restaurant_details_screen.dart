@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tavo/core/constants/app_assets.dart';
 import 'package:tavo/core/di/service_locator.dart';
+import 'package:tavo/core/helpers/utils/short_id.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/core/theme/theme_extensions.dart';
@@ -794,9 +795,7 @@ class _OrderSuccessSheet extends StatelessWidget {
                       ),
                       SizedBox(height: 4.h),
                       Text(
-                        order?.orderNumber ??
-                            order?.id.substring(0, 8).toUpperCase() ??
-                            '',
+                        order?.orderNumber ?? shortId(order?.id ?? ''),
                         style: TextStyle(
                           color: ColorsManager.black,
                           fontSize: 15.sp,

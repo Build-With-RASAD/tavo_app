@@ -351,5 +351,13 @@
   "your_table_reserved": "Your table has been reserved!",
   "select_date": "Select Date",
   "select_time": "Select Time",
-  "date_and_time": "Date & Time"
+  "date_and_time": "Date & Time",
+  "restaurant_login_title": "Restaurant Sign In",
+  "restaurant_login_subtitle": "Sign in with your staff phone number to manage your venue",
+  "seat": "Seat",
+  "complete": "Complete",
+  "seated": "Seated",
+  "my_reservations": "Reservations",
+  "no_reservations": "No reservations yet",
+  "select_restaurant": "Select restaurant"
 }

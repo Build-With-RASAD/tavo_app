@@ -58,7 +58,7 @@ class RestaurantMapScreen extends StatelessWidget {
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.tavo',
+            userAgentPackageName: 'com.rasad.tavo',
           ),
           MarkerLayer(
             markers: [

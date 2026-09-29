@@ -10,6 +10,7 @@ import 'package:tavo/feature/onboarding/ui/cubit/onboarding_state.dart';
 import 'package:tavo/feature/onboarding/ui/widgets/onboarding_dot_indicator.dart';
 import 'package:tavo/feature/onboarding/ui/widgets/onboarding_page.dart';
 import 'package:tavo/feature/auth/ui/screens/login_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -51,14 +52,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  void _onSkip() {
-    final cubit = context.read<OnboardingCubit>();
+  void _onSkip(OnboardingCubit cubit) {
     final lastIndex = _pages.length - 1;
     cubit.onPageChanged(lastIndex);
     _pageController.animateToPage(
       lastIndex,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
+    );
+  }
+
+  /// Staff entry: the restaurant button leaves onboarding for the staff
+  /// login flow instead of re-navigating the already-visible last page.
+  void _navigateToRestaurantLogin(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const RestaurantLoginScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
     );
   }
 
@@ -177,7 +192,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 )
               : SizedBox(width: 34.w),
           if (!state.isLastPage)
-            _buildSkipButton(textTheme)
+            _buildSkipButton(cubit, textTheme)
           else
             SizedBox(width: 60.w),
         ],
@@ -202,9 +217,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildSkipButton(TextTheme textTheme) {
+  Widget _buildSkipButton(OnboardingCubit cubit, TextTheme textTheme) {
     return GestureDetector(
-      onTap: _onSkip,
+      onTap: () => _onSkip(cubit),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         decoration: BoxDecoration(
@@ -281,7 +296,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         radius: 80,
                         height: 48.h,
                         prefixIcon: const MySvg(
-                          image: 'account (2)',
+                          image: 'account',
                           applyColor: false,
                         ),
                         labelStyle: textTheme.titleMedium?.copyWith(
@@ -291,7 +306,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                       SizedBox(height: 12.h),
                       MyButton(
-                        onPressed: _onSkip,
+                        onPressed: () => _navigateToRestaurantLogin(context),
                         label: 'مـتـابـعـة كـ مـطـعم',
                         backgroundColor:
                             ColorsManager.white.withValues(alpha: 0.08),

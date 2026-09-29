@@ -13,6 +13,8 @@ class CacheHelper {
   static const String _userIdKey = 'user_id';
   static const String _userNameKey = 'user_name';
   static const String _userImageKey = 'user_image';
+  static const String _staffModeKey = 'staff_mode';
+  static const String _staffRestaurantsKey = 'staff_restaurants';
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -94,11 +96,32 @@ class CacheHelper {
     await _prefs?.remove(_userIdKey);
     await _prefs?.remove(_userNameKey);
     await _prefs?.remove(_userImageKey);
+    await _prefs?.remove(_staffModeKey);
+    await _prefs?.remove(_staffRestaurantsKey);
     return true;
   }
 
   static bool isLoggedIn() {
     final token = getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  /// True when the active session belongs to restaurant staff (as opposed to
+  /// a customer). Survives restarts so splash can route back to staff home.
+  static Future<bool> setStaffMode(bool value) async {
+    return await _prefs?.setBool(_staffModeKey, value) ?? false;
+  }
+
+  static bool isStaffMode() {
+    return _prefs?.getBool(_staffModeKey) ?? false;
+  }
+
+  static Future<bool> setStaffRestaurants(String restaurantsJson) async {
+    return await _prefs?.setString(_staffRestaurantsKey, restaurantsJson) ??
+        false;
+  }
+
+  static String? getStaffRestaurants() {
+    return _prefs?.getString(_staffRestaurantsKey);
   }
 }

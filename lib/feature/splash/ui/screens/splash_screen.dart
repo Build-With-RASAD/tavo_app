@@ -1,11 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/constants/app_assets.dart';
 import 'package:tavo/core/theme/colors.dart';
+import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/auth/ui/screens/login_screen.dart';
 import 'package:tavo/feature/home/ui/screens/main_nav_screen.dart';
 import 'package:tavo/feature/onboarding/ui/screens/onboarding_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,7 +62,11 @@ class _SplashScreenState extends State<SplashScreen>
 
     Widget nextScreen;
 
-    if (isLoggedIn) {
+    if (isLoggedIn && CacheHelper.isStaffMode()) {
+      nextScreen = RestaurantHomeScreen(
+        restaurants: _cachedStaffRestaurants(),
+      );
+    } else if (isLoggedIn) {
       nextScreen = const MainNavScreen();
     } else if (isOnboardingCompleted) {
       nextScreen = const LoginScreen();
@@ -75,6 +83,21 @@ class _SplashScreenState extends State<SplashScreen>
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+  }
+
+  /// Staff venues cached at verify-OTP time. Empty (never null) when the
+  /// cache is missing or corrupt — the home screen then shows `no_data`
+  /// instead of crashing, and staff can log out / back in to refresh.
+  List<StaffRestaurant> _cachedStaffRestaurants() {
+    try {
+      final raw = CacheHelper.getStaffRestaurants();
+      if (raw == null || raw.isEmpty) return [];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+      return decoded.map(StaffRestaurant.fromJson).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override

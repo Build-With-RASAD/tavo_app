@@ -5,6 +5,12 @@ class ApiConstants {
   static const String register = '/v1/api/auth/register';
   static const String login = '/v1/api/auth/login';
   static const String verifyOtp = '/v1/api/auth/verify-otp';
+  static const String restaurantLogin = '/v1/api/auth/restaurant-login';
+  static const String verifyRestaurantOtp = '/v1/api/auth/verify-restaurant-otp';
+  static String restaurantReservations(String restaurantId) =>
+      '/v1/api/reservation/restaurant/$restaurantId';
+  static String reservationAction(String id, String action) =>
+      '/v1/api/reservation/$id/$action';
   static const String home = '/v1/api/home';
   static const String restaurants = '/v1/api/restaurant';
   static String restaurantDetails(String id) => '/v1/api/restaurant/$id';

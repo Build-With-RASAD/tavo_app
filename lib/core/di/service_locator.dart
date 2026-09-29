@@ -17,11 +17,14 @@ import 'package:tavo/feature/restaurant/data/repo/menu_repo.dart';
 import 'package:tavo/feature/restaurant/data/repo/order_repo.dart';
 import 'package:tavo/feature/restaurant/data/repo/restaurant_details_repo.dart';
 import 'package:tavo/feature/restaurant/data/repo/restaurants_repo.dart';
+import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant/ui/logic/menu_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/menu_item_specification_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/order_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/restaurant_details_cubit.dart';
 import 'package:tavo/feature/restaurant/ui/logic/restaurants_cubit.dart';
+import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_cubit.dart';
+import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -80,6 +83,19 @@ Future<void> initServiceLocator() async {
   );
   getIt.registerLazySingleton<BookingsRepo>(
     () => BookingsRepo(getIt<ApiService>()),
+  );
+
+  getIt.registerLazySingleton<RestaurantAuthRepo>(
+    () => RestaurantAuthRepo(getIt<ApiService>()),
+  );
+
+  getIt.registerFactory<RestaurantAuthCubit>(
+    () => RestaurantAuthCubit(getIt<RestaurantAuthRepo>()),
+  );
+
+  getIt.registerFactoryParam<RestaurantHomeCubit, String, void>(
+    (restaurantId, _) =>
+        RestaurantHomeCubit(getIt<RestaurantAuthRepo>(), restaurantId: restaurantId),
   );
 
   getIt.registerFactory<BookingsCubit>(

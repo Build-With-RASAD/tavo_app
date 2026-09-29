@@ -212,6 +212,9 @@ class _OtpScreenState extends State<OtpScreen> {
         appContext: context,
         length: 4,
         controller: _otpController,
+        // The controller is owned by this State; pin_code_fields must not
+        // dispose it or our own dispose() double-disposes (debug assertion).
+        autoDisposeControllers: false,
         keyboardType: TextInputType.number,
         animationType: AnimationType.fade,
         animationDuration: const Duration(milliseconds: 200),

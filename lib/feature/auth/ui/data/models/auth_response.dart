@@ -1,14 +1,24 @@
+import 'staff_restaurant.dart';
+
 class AuthResponse {
   final bool success;
   final String? message;
   final String? token;
   final UserData? user;
 
+  /// Staff flow only: set by `restaurant-login` / `verify-restaurant-otp`.
+  final bool hasRestaurantAccess;
+  final List<StaffRestaurant> restaurants;
+  final bool isRestaurantOwner;
+
   AuthResponse({
     required this.success,
     this.message,
     this.token,
     this.user,
+    this.hasRestaurantAccess = false,
+    this.restaurants = const [],
+    this.isRestaurantOwner = false,
   });
 
   factory AuthResponse.fromJson(dynamic json) {
@@ -35,6 +45,12 @@ class AuthResponse {
           : json['data']?['user'] != null 
               ? UserData.fromJson(json['data']['user'])
               : null,
+      hasRestaurantAccess: json['hasRestaurantAccess'] == true,
+      restaurants: (json['restaurants'] as List<dynamic>?)
+              ?.map(StaffRestaurant.fromJson)
+              .toList() ??
+          const [],
+      isRestaurantOwner: json['isRestaurantOwner'] == true,
     );
   }
 }

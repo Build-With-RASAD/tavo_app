@@ -835,11 +835,25 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
   void _onNext(BuildContext context, CreateBookingState state) async {
     if (_currentStep == 0) {
+      final messenger = ScaffoldMessenger.of(context);
       await context.read<CreateBookingCubit>().checkAvailability();
       if (mounted) {
         final newState = context.read<CreateBookingCubit>().state;
-        if (newState.availableTables.isNotEmpty && newState.error == null) {
+        if (newState.error != null) {
+          // The BlocListener surfaces state.error as a SnackBar.
+          return;
+        }
+        if (newState.availableTables.isNotEmpty) {
           setState(() => _currentStep++);
+        } else {
+          // Previously the flow stalled here silently: no advance, no
+          // feedback. Tell the user why they cannot continue.
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('no_tables_available'.tr()),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
     } else if (_currentStep < 2) {

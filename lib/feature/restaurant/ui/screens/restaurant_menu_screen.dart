@@ -49,6 +49,7 @@ class _RestaurantMenuView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final locale = context.locale.languageCode;
+    final orderSubmitting = context.watch<OrderCubit>().state.submitting;
 
     return BlocBuilder<MenuCubit, MenuState>(
       builder: (context, state) {
@@ -74,8 +75,32 @@ class _RestaurantMenuView extends StatelessWidget {
           ),
           bottomNavigationBar: showBottomBar
               ? BottomBookingBar(
-                  onPressed: () {},
-                  buttonTextKey: 'book_your_seat'.tr(),
+                  onPressed: orderSubmitting
+                      ? null
+                      : () {
+                          // Sync the menu cart into the OrderCubit that the
+                          // details screen shares with this screen (via
+                          // BlocProvider.value), then submit. The details
+                          // screen's success listener opens the order
+                          // success sheet, which leads to the booking sheet.
+                          final orderCubit = context.read<OrderCubit>();
+                          state.cart.forEach((itemId, qty) {
+                            final item = state.items
+                                .where((m) => m.id == itemId)
+                                .firstOrNull;
+                            if (item == null) return;
+                            for (var i = 0; i < qty; i++) {
+                              orderCubit.addSimpleItem(
+                                menuItemId: itemId,
+                                name: item.getTitle(locale),
+                                imageUrl: item.imageUrl,
+                                price: item.price,
+                              );
+                            }
+                          });
+                          orderCubit.placeOrder();
+                        },
+                  buttonTextKey: 'book_your_seat',
                   total: state.total,
                   cartLines: cartLines,
                   onAddItem: cubit.add,

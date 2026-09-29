@@ -19,6 +19,12 @@ class BookingModel {
   final String tablePreference;
   final String createdAt;
 
+  /// Staff view only: who made the reservation. Populated backends send the
+  /// guest as `userId: {name, phone}`; guest (walk-up) bookings send
+  /// `customer: {name, phone}`. Empty for legacy payloads.
+  final String guestName;
+  final String guestPhone;
+
   const BookingModel({
     required this.id,
     this.restaurantId = '',
@@ -35,6 +41,8 @@ class BookingModel {
     this.specialRequests = '',
     this.tablePreference = 'any',
     required this.createdAt,
+    this.guestName = '',
+    this.guestPhone = '',
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -69,6 +77,23 @@ class BookingModel {
       orderData = OrderData.fromJson(json['orderId']);
     }
 
+    // Guest identity: prefer the populated user, fall back to the embedded
+    // guest customer, otherwise leave empty (customer own-booking payloads).
+    String guestName = '';
+    String guestPhone = '';
+    final user = json['userId'];
+    if (user is Map<String, dynamic>) {
+      guestName = user['name']?.toString() ?? '';
+      guestPhone = user['phone']?.toString() ?? '';
+    }
+    if (guestName.isEmpty && guestPhone.isEmpty) {
+      final customer = json['customer'];
+      if (customer is Map<String, dynamic>) {
+        guestName = customer['name']?.toString() ?? '';
+        guestPhone = customer['phone']?.toString() ?? '';
+      }
+    }
+
     return BookingModel(
       id: json['_id'] ?? '',
       restaurantId: restId,
@@ -87,6 +112,8 @@ class BookingModel {
       specialRequests: json['specialRequests'] ?? '',
       tablePreference: json['tablePreference'] ?? 'any',
       createdAt: json['createdAt'] ?? '',
+      guestName: guestName,
+      guestPhone: guestPhone,
     );
   }
 
