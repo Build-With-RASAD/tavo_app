@@ -85,6 +85,25 @@ void main() {
     expect(o.customerPhone, '+966500000000');
   });
 
+  test('PanelOrder tolerates id/totalAmount/items key variants', () {
+    final o = PanelOrder.fromJson({
+      ..._order,
+      '_id': null,
+      'id': 'alt-id-1',
+      'totalPrice': null,
+      'totalAmount': 250.75,
+      'menuItems': null,
+      'items': [
+        {'name': 'Alt Item', 'quantity': 2, 'unitPrice': 100, 'lineTotal': 200},
+      ],
+    });
+
+    expect(o.id, 'alt-id-1');
+    expect(o.totalPrice, 250.75);
+    expect(o.items.single.name, 'Alt Item');
+    expect(o.items.single.lineTotal, 200);
+  });
+
   test('nextOrderActionsFor mirrors the backend transition map', () {
     expect(nextOrderActionsFor('pending'), ['confirmed', 'cancelled']);
     expect(nextOrderActionsFor('confirmed'), ['preparing', 'cancelled']);

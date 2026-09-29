@@ -33,10 +33,10 @@ class PanelOrder {
   factory PanelOrder.fromJson(Map<String, dynamic> json) {
     final userId = _asMap(json['userId']);
     final customer = _asMap(json['customer']);
-    final rawItems = json['menuItems'];
+    final rawItems = json['menuItems'] ?? json['items'];
 
     return PanelOrder(
-      id: json['_id']?.toString() ?? '',
+      id: (json['_id'] ?? json['id'])?.toString() ?? '',
       orderNumber: json['orderNumber']?.toString() ?? '',
       customerName:
           _firstNonEmpty(userId?['name'], customer?['name']),
@@ -50,7 +50,7 @@ class PanelOrder {
           : const [],
       subtotal: _toDouble(json['subtotal']),
       tax: _toDouble(json['tax']),
-      totalPrice: _toDouble(json['totalPrice']),
+      totalPrice: _toDouble(json['totalPrice'] ?? json['totalAmount']),
       paymentStatus: json['paymentStatus']?.toString() ?? '',
       orderStatus: json['orderStatus']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
