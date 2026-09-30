@@ -419,7 +419,19 @@ Step-0 deviations from brief snippet (assertions intact):
 - Pricing math verified against customer `createOrderService`: TAX_RATE 0.15, tax rounded, `totalPrice = subtotal + tax` (unrounded) → implemented identically; brief test numbers (135/20.25/155.25) unchanged.
 - Order schema has NO `notes` field → validator accepts `notes` (≤500) but service does not persist it (strict mode would drop it).
 - `PhysicalTable` requires `tableTypeId` → test creates a `Table` type fixture and passes `tableTypeId` (brief test omits it and would fail validation).
+Fix round 1/5 (post-commit): added `notes: { type: String, default: "" }` to the Order schema (additive, no migration) + caught that the service dropped `notes` (`void notes` → persists `notes ?? ""`); 2 DB-reload persistence assertions, RED-first (2-fail before, GREEN after), suite 9/9. Full-unit at fix time: sibling-owned failures only (T24 enum migration, parallel flakes).
+Cross-task note (review F1, accepted deviation): this commit also carries T24's `delivered`→`served` enum hunk (single-writer model file, disclosed in ledger at commit time); the enum-expectation suite went green via migration in T24's commit — no weakening anywhere.
 i18n guard: conflicting value without `--force` → `key-conflict: <keys>`, exit 1, file untouched, lock released explicitly (process.exit skips finally); `--force` overwrites + prints `overwrote: <keys>`. All 6 pre-existing guard behaviors green.
 Controller wiring (NOT applied — `restaurant-owner.routes.js` untouched):
   import orderCreatePanelRoutes from "./order-create-panel.route.js";
   router.use(orderCreatePanelRoutes);
+
+## Task 25 — ZATCA invoice backend (controller-adopted orphan)
+Origin: implementer subagent was interrupted mid-task (no report); controller adopted the working tree per the orphan rule — implementation + 5-test suite verified, never trusted blind.
+RED (reconstructed by controller): `mv src/services/invoice-panel.services.js` away → suite fails `Cannot find module '../../src/services/invoice-panel.services.js'` (0 tests run); restored → 5/5 GREEN.
+GREEN: `npm test -- tests/unit/invoice-panel.test.js` → 1 suite, 5 passed (sequential numbers + VAT math + TLV decode round-trip, 403 without view_orders, 404 foreign order, null-QR without vatNumber, 401).
+Schema deviations from brief (assertions intact): order lines live in `menuItems[]` as `name/quantity/unitPrice/lineTotal` (brief assumed `qty`) → service maps `quantity→qty` in the response; seller = `restaurant.en.name`. TLV helper + tag order verbatim per brief; atomic `findOneAndUpdate` `$inc` counter → `INV-000123`; no-vatNumber → `zatcaQr: null` (never empty Tag2).
+Full gate: 46 suites / 462 tests — first run 1 unrelated flake (known parallel mongo-memory family), clean re-run 0 failures.
+Controller wiring (applied by controller at commit):
+  import invoicePanelRoutes from "./invoice-panel.route.js";
+  router.use(invoicePanelRoutes);
