@@ -6,6 +6,7 @@ import 'package:tavo/feature/booking/data/repo/bookings_repo.dart';
 import 'package:tavo/feature/booking/ui/logic/bookings_cubit.dart';
 import 'package:tavo/feature/notifications/data/repo/notifications_repo.dart';
 import 'package:tavo/feature/notifications/ui/logic/notifications_cubit.dart';
+import 'package:tavo/feature/panel_menu/di/register_menu_module.dart';
 import 'package:tavo/feature/Profile/ui/logic/cubit/profile_cubit.dart';
 import 'package:tavo/feature/Profile/data/repo/profile_repo.dart';
 import 'package:tavo/feature/auth/ui/data/repo/auth_repo.dart';
@@ -123,4 +124,7 @@ Future<void> initServiceLocator() async {
   getIt.registerFactory<NotificationsCubit>(
     () => NotificationsCubit(getIt<NotificationsRepo>()),
   );
+
+  // Wave 1 panel modules (one-liners reported by module tasks; controller-owned file).
+  registerMenuModule();
 }
