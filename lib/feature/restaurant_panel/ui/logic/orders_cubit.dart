@@ -69,7 +69,9 @@ class OrdersCubit extends Cubit<OrdersState> {
         pages: result.pages,
         hasNext: result.hasNext,
         actingId: current.actingId,
-        actionError: current.actionError,
+        // M-9: a successful page append never re-surfaces the previous
+        // actionError — the SnackBar listener would show it again.
+        actionError: null,
       ));
     } catch (e) {
       if (isClosed) return;

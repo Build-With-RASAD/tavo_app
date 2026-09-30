@@ -316,6 +316,8 @@
   "date": "Date",
   "draft": "Draft",
   "pending": "Pending",
+  "no_show": "No Show",
+  "finished_meal": "Finished",
   
   "in_progress_status": "In Progress",
   

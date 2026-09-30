@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/booking/data/model/booking_model.dart';
@@ -13,10 +15,15 @@ class FakeHomeRepo extends RestaurantAuthRepo {
   String? failActionFor;
   int loadCalls = 0;
 
+  /// When set, `getRestaurantReservations` suspends on this future so a
+  /// test can close the cubit while the request is still in flight.
+  Completer<List<BookingModel>>? loadGate;
+
   @override
   Future<List<BookingModel>> getRestaurantReservations(
       String restaurantId) async {
     loadCalls++;
+    if (loadGate != null) return loadGate!.future;
     if (loadError != null) throw loadError!;
     return reservations;
   }
@@ -144,5 +151,17 @@ void main() {
     );
     await cubit.updateStatus('a', 'confirm');
     await expectation;
+  });
+
+  test('loadReservations completing after close does not throw', () async {
+    repo.reservations = [_booking(id: 'a')];
+    repo.loadGate = Completer<List<BookingModel>>();
+
+    final pending = cubit.loadReservations(); // suspends on the gate
+    await cubit.close(); // venue switch / logout disposes mid-request
+    repo.loadGate!.complete(repo.reservations);
+
+    // RED: the resumption emits on a closed cubit → StateError.
+    await pending;
   });
 }

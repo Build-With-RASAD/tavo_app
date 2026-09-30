@@ -12,6 +12,8 @@
 //     filter chips share label text with the badges;
 //   * the details-sheet payment assertion is scoped to the sheet — the card
 //     underneath stays in the tree while a modal sheet is open.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -49,6 +51,19 @@ class FakePanelRepo extends RestaurantPanelRepo {
   FakePanelRepo() : super(ApiService());
 
   List<PanelOrder> orders = [];
+  List<PanelOrder> page2Orders = [];
+
+  /// Total pages the fake advertises — 1 (default) keeps every existing
+  /// test single-page; 2 lets a test exercise the scroll-end `loadMore`.
+  int totalPages = 1;
+
+  /// Every `page` value the screen asked the repo for.
+  final List<int> pagesServed = [];
+
+  /// When set, page 2 suspends on this future so a test can observe the
+  /// footer loading indicator while the next page is in flight.
+  Completer<void>? page2Gate;
+
   Object? loadError;
   String? failActionFor;
   String? lastFilter;
@@ -62,13 +77,15 @@ class FakePanelRepo extends RestaurantPanelRepo {
     String? status,
   }) async {
     lastFilter = status;
+    pagesServed.add(page);
     if (loadError != null) throw loadError!;
+    if (page > 1 && page2Gate != null) await page2Gate!.future;
     return PagedResult(
-      items: orders,
-      page: 1,
-      limit: 20,
-      total: orders.length,
-      pages: 1,
+      items: page == 1 ? orders : page2Orders,
+      page: page,
+      limit: limit,
+      total: orders.length + page2Orders.length,
+      pages: totalPages,
     );
   }
 
@@ -234,5 +251,54 @@ void main() {
       tester,
       () => _rowBadge('1', 'Cancelled').evaluate().isNotEmpty,
     );
+  });
+
+  testWidgets('scrolling near the bottom loads page 2 behind a footer spinner', (
+    tester,
+  ) async {
+    repo
+      ..totalPages = 2
+      ..orders = [for (var i = 1; i <= 20; i++) _order('$i', 'pending')]
+      ..page2Orders = [_order('90', 'ready')]
+      ..page2Gate = Completer<void>();
+
+    await tester.pumpWidget(appShell(const OrdersScreen(restaurantId: 'r1')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('order_card_90')), findsNothing);
+
+    // The list is taller than one drag — drag until the viewport reaches
+    // the end (the trigger fires within ~200px of the bottom).
+    for (var i = 0; i < 5 && !repo.pagesServed.contains(2); i++) {
+      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.pump();
+    }
+
+    expect(
+      repo.pagesServed,
+      contains(2),
+      reason: 'loadMore must be reachable from the list (I-1)',
+    );
+    expect(
+      find.byKey(const ValueKey('orders_load_more_footer')),
+      findsOneWidget,
+      reason: 'footer spinner shows while page 2 is in flight',
+    );
+
+    repo.page2Gate!.complete();
+    await tester.pumpAndSettle();
+
+    // Second drag: reveal the appended tail and re-arm the trigger (a
+    // no-op now that hasNext is false).
+    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('order_card_90')),
+      findsOneWidget,
+      reason: 'page-2 row appears after the append',
+    );
+    expect(find.byKey(const ValueKey('orders_load_more_footer')), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }

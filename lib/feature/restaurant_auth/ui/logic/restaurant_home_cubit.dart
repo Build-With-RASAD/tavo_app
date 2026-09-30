@@ -13,19 +13,22 @@ class RestaurantHomeCubit extends Cubit<RestaurantHomeState> {
       : super(RestaurantHomeInitial());
 
   Future<void> loadReservations() async {
+    if (isClosed) return;
     emit(RestaurantHomeLoading());
     try {
       final reservations =
           await _repo.getRestaurantReservations(restaurantId);
+      if (isClosed) return;
       emit(RestaurantHomeLoaded(reservations));
     } catch (e) {
+      if (isClosed) return;
       emit(RestaurantHomeError(_message(e)));
     }
   }
 
   Future<void> updateStatus(String id, String action) async {
     final current = state;
-    if (current is! RestaurantHomeLoaded) return;
+    if (current is! RestaurantHomeLoaded || isClosed) return;
     emit(
       RestaurantHomeLoaded(
         current.reservations,
@@ -37,6 +40,7 @@ class RestaurantHomeCubit extends Cubit<RestaurantHomeState> {
         id: id,
         action: action,
       );
+      if (isClosed) return;
       emit(
         RestaurantHomeLoaded([
           for (final b in current.reservations)
@@ -44,6 +48,7 @@ class RestaurantHomeCubit extends Cubit<RestaurantHomeState> {
         ]),
       );
     } catch (e) {
+      if (isClosed) return;
       emit(
         RestaurantHomeLoaded(
           current.reservations,

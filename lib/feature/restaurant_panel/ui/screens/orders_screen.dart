@@ -142,26 +142,11 @@ class OrdersScreen extends StatelessWidget {
           onRetry: cubit.load,
         );
       }
-      return RefreshIndicator(
-        onRefresh: () => cubit.load(),
-        child: ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(16.w),
-          itemCount: state.orders.length,
-          itemBuilder: (context, index) {
-            final order = state.orders[index];
-            return Padding(
-              padding: EdgeInsets.only(bottom: 12.h),
-              child: OrderCard(
-                key: ValueKey('order_card_${order.id}'),
-                order: order,
-                acting: state.actingId == order.id,
-                onAction: (target) => _handleAction(context, order, target),
-                onTap: () => _openDetails(context, order),
-              ),
-            );
-          },
-        ),
+      return _PaginatedOrdersList(
+        cubit: cubit,
+        state: state,
+        onAction: (order, target) => _handleAction(context, order, target),
+        onOpenDetails: (order) => _openDetails(context, order),
       );
     }
     // OrdersInitial / OrdersLoading.
@@ -194,6 +179,113 @@ class OrdersScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => OrderDetailsSheet(order: order),
+    );
+  }
+}
+
+/// The order list with infinite scroll (I-1): a [ScrollController] fires
+/// `cubit.loadMore` when the viewport comes within ~200px of the list end,
+/// guarded by the state's `hasNext` and a local in-flight flag so a burst
+/// of scroll events can only ever start one page request. While the next
+/// page is appending, a spinner footer is built as the last row; the cubit
+/// keeps every row of the visible list on screen throughout.
+class _PaginatedOrdersList extends StatefulWidget {
+  const _PaginatedOrdersList({
+    required this.cubit,
+    required this.state,
+    required this.onAction,
+    required this.onOpenDetails,
+  });
+
+  final OrdersCubit cubit;
+  final OrdersLoaded state;
+  final void Function(PanelOrder order, String target) onAction;
+  final ValueChanged<PanelOrder> onOpenDetails;
+
+  @override
+  State<_PaginatedOrdersList> createState() => _PaginatedOrdersListState();
+}
+
+class _PaginatedOrdersListState extends State<_PaginatedOrdersList> {
+  final ScrollController _controller = ScrollController();
+
+  /// Local in-flight flag — `OrdersState` carries no `loadingMore`, so the
+  /// footer is driven here while the cubit's own `_loadingMore` guard is
+  /// the backstop for anything that slips through.
+  bool _loadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onScroll);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Infinite-scroll trigger: fires within ~200px of the bottom, and only
+  /// when no page append is already running.
+  void _onScroll() {
+    if (_loadingMore) return;
+    final position = _controller.position;
+    if (position.pixels < position.maxScrollExtent - 200) return;
+    _loadNextPage();
+  }
+
+  Future<void> _loadNextPage() async {
+    final current = widget.cubit.state;
+    if (current is! OrdersLoaded || !current.hasNext || _loadingMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      await widget.cubit.loadMore();
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final orders = widget.state.orders;
+
+    return RefreshIndicator(
+      onRefresh: () => widget.cubit.load(),
+      child: ListView.builder(
+        controller: _controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.all(16.w),
+        itemCount: orders.length + (_loadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= orders.length) {
+            // Footer: the next page is appending right now.
+            return Padding(
+              key: const ValueKey('orders_load_more_footer'),
+              padding: EdgeInsets.only(top: 4.h),
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+          final order = orders[index];
+          return Padding(
+            padding: EdgeInsets.only(bottom: 12.h),
+            child: OrderCard(
+              key: ValueKey('order_card_${order.id}'),
+              order: order,
+              acting: widget.state.actingId == order.id,
+              onAction: (target) => widget.onAction(order, target),
+              onTap: () => widget.onOpenDetails(order),
+            ),
+          );
+        },
+      ),
     );
   }
 }

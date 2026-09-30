@@ -11,11 +11,14 @@ class DashboardCubit extends Cubit<DashboardState> {
   DashboardCubit(this._repo) : super(DashboardInitial());
 
   Future<void> load(String restaurantId) async {
+    if (isClosed) return;
     emit(DashboardLoading());
     try {
       final stats = await _repo.getDashboard(restaurantId);
+      if (isClosed) return;
       emit(DashboardLoaded(stats));
     } catch (e) {
+      if (isClosed) return;
       emit(DashboardError(_message(e)));
     }
   }

@@ -160,4 +160,22 @@ void main() {
     await sub.cancel();
     expect(states, isEmpty);
   });
+
+  test('loadMore never re-raises a previous actionError (M-9)', () async {
+    repo
+      ..totalPages = 2
+      ..failActionFor = 'a';
+    await cubit.load();
+    await cubit.updateStatus('a', 'confirmed'); // fails → actionError set
+    expect((cubit.state as OrdersLoaded).actionError, isNotNull,
+        reason: 'precondition: a failed action left an error on the state');
+
+    final expectation = expectLater(
+      cubit.stream,
+      emits(predicate<OrdersLoaded>(
+          (s) => s.page == 2 && s.actionError == null)),
+    );
+    await cubit.loadMore();
+    await expectation;
+  });
 }
