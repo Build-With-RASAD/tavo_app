@@ -374,3 +374,36 @@ Analyze: 24 issues total = baseline, 0 in task-16 files (a transient `prefer_con
 Controller wiring (NOT applied — service_locator untouched):
   import 'package:tavo/feature/panel_settings/di/register_settings_module.dart';
   registerSettingsModule();
+
+## Task 18 — Customers CRM UI (searchable list + detail)
+RED: not observed — all task files pre-existed in the working tree on arrival (model, repo, cubits, both screens, register module, test, i18n keys). Verified implementation matches the brief verbatim instead, then ran GREEN.
+GREEN: 7 passed (`00:01 +7: All tests passed!`).
+Deviations from brief snippet (no assertion changed):
+- Repo uses named record destructure `(items: rows, pagination: pagination)` (brief positional form doesn't compile against panel_envelope.dart; menu pattern).
+- Test `_pumpCustomers` gains the `pumpUntil`-skeleton amendment (EasyLocalization builds the child subtree asynchronously; mirrors panel_menu_test).
+- Removed the unused `customers_panel_cubit.dart` import from the test (it added an `unused_import` analyze issue; the cubit is exercised indirectly through `CustomersScreen`).
+i18n: 9 keys x en/ar verified present with brief-verbatim values (a probe `i18n-add` call briefly set en `search_customers` to "x"; restored to "Search customers…" via the script and re-verified all 9).
+Suites touched all green: panel_customers 7/7. Full suite: `+167: All tests passed!` (EXIT:0, no failures).
+Analyze: 26 issues total, 0 in task-18 files (baseline 24; the +2 sit in out-of-scope files — `test/panel_branches_test.dart` unused import from a sibling task plus pre-existing warnings in booking/home/restaurant widgets).
+Controller wiring (NOT applied — service_locator untouched):
+  import 'package:tavo/feature/panel_customers/di/register_customers_module.dart';
+  registerCustomersModule();
+
+## Task 20 — Contact + QR UI (settings form, QR display, copy/share)
+RED: `flutter test test/panel_contact_test.dart` → compile errors (`panel_contact` package doesn't exist: `contact_models.dart`/`contact_panel_repo.dart`/`contact_panel_cubit.dart`/`panel_contact_screen.dart` not found; 0 tests ran).
+GREEN: 9 passed (`00:01 +9: All tests passed!`).
+Deviations from brief snippet (assertions intact unless noted):
+- `repo.calls.single` → `repo.calls.last` in the save test (ASSERTION FIX, brief defect: `calls` also holds the initial `'getContact'` from `load()`, so `.single` throws with 2 entries; `.last` keeps the brief's intent — save journals `phone:email`).
+- Added the missing `package:tavo/core/widgets/state/async_state_view.dart` import to the test (brief template uses `ListSkeleton` without importing it — doesn't compile).
+- `_pumpContact` gains the `pumpUntil`-skeleton amendment (EasyLocalization builds the child subtree asynchronously; mirrors panel_menu/customers/reviews/branches tests).
+- QR card renders FIRST in the scroll, form after, save pinned in `bottomNavigationBar` (same keys, spinner while `saving`): the full form + 200px QR exceeds the 800x600 test viewport and the brief test taps `save_contact`/`copy_link`/`share_link` without scrolling. QR section is always visible incl. view-only staff (no bottom bar when not manageable).
+- Cubit adds a `justSaved` flag on `ContactPanelLoaded` (brief Step 6): success emits `justSaved:true`, screen shows the `contact_saved` snackbar once; save failures keep the form + `actionError` (settings-cubit pattern).
+- `PanelContactScreen({super.key, required restaurantId, required venue})` exact fixed ctor, venue-inline `owner/manager/full_access/manage_settings` gating; Task 11 placeholder `restaurant_panel/.../contact_screen.dart` (`ContactScreen`) untouched.
+- Share uses the instance API `SharePlus.instance.share(ShareParams(text: menuUrl))` in try/catch with clipboard fallback + `link_copied` snackbar (static `Share.share` removed in share_plus v11).
+Deps (this task owns pubspec.yaml): `qr_flutter: ^4.1.0` + `share_plus: ^11.0.0` via `flutter pub add`; lock resolves `qr_flutter 4.1.0` / `share_plus 11.1.0`. `QrImageView(data:, version: QrVersions.auto, size: 200, key: Key('menu_qr'))` verified against the 4.1.0 source.
+i18n: 13 keys x en/ar via script (`contact_qr` pre-existed per brief; all 14 keys verified present in both files with brief-verbatim values).
+Suites touched all green: panel_contact 9/9. Full suite: `+176: All tests passed!` (EXIT:0; baseline 167 + this task's 9, no failures).
+Analyze: 24 issues total = baseline, 0 in task-20 files.
+Controller wiring (NOT applied — service_locator untouched):
+  import 'package:tavo/feature/panel_contact/di/register_contact_module.dart';
+  registerContactModule();
