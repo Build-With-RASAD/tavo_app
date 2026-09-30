@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/booking/data/model/booking_model.dart';
-import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
+import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_cubit.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_state.dart';
 
-class FakeHomeRepo extends RestaurantAuthRepo {
+class FakeHomeRepo extends RestaurantPanelRepo {
   FakeHomeRepo() : super(ApiService());
 
   List<BookingModel> reservations = [];
@@ -15,13 +15,13 @@ class FakeHomeRepo extends RestaurantAuthRepo {
   String? failActionFor;
   int loadCalls = 0;
 
-  /// When set, `getRestaurantReservations` suspends on this future so a
+  /// When set, `getReservations` suspends on this future so a
   /// test can close the cubit while the request is still in flight.
   Completer<List<BookingModel>>? loadGate;
 
   @override
-  Future<List<BookingModel>> getRestaurantReservations(
-      String restaurantId) async {
+  Future<List<BookingModel>> getReservations(
+      String restaurantId, {int limit = 100}) async {
     loadCalls++;
     if (loadGate != null) return loadGate!.future;
     if (loadError != null) throw loadError!;
@@ -29,7 +29,8 @@ class FakeHomeRepo extends RestaurantAuthRepo {
   }
 
   @override
-  Future<BookingModel> updateReservationStatus({
+  Future<BookingModel> updateReservationAction({
+    required String restaurantId,
     required String id,
     required String action,
     String? reason,

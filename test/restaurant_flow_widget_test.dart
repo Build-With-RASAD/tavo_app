@@ -123,6 +123,34 @@ class FakePanelRepo extends RestaurantPanelRepo {
       pages: 1,
     );
   }
+
+  List<BookingModel> homeReservations = const [];
+  @override
+  Future<List<BookingModel>> getReservations(String restaurantId, {int limit = 100}) async => homeReservations;
+  @override
+  Future<BookingModel> updateReservationAction({required String restaurantId, required String id, required String action, String? reason}) async {
+    const next = {'confirm': 'confirmed', 'seat': 'seated', 'complete': 'completed', 'cancel': 'cancelled'};
+    final b = homeReservations.firstWhere((e) => e.id == id);
+    return BookingModel(
+      id: b.id,
+      restaurantId: b.restaurantId,
+      restaurantNameAr: b.restaurantNameAr,
+      restaurantNameEn: b.restaurantNameEn,
+      restaurantLogoUrl: b.restaurantLogoUrl,
+      restaurantAddress: b.restaurantAddress,
+      startAt: b.startAt,
+      endAt: b.endAt,
+      guestsCount: b.guestsCount,
+      status: next[action] ?? action,
+      tables: b.tables,
+      order: b.order,
+      specialRequests: b.specialRequests,
+      tablePreference: b.tablePreference,
+      createdAt: b.createdAt,
+      guestName: b.guestName,
+      guestPhone: b.guestPhone,
+    );
+  }
 }
 
 const _venue = StaffRestaurant(
@@ -152,17 +180,18 @@ void main() {
   setUpAll(initTestEnv);
 
   late FakeStaffRepo repo;
+  late FakePanelRepo panelRepo;
   final getIt = GetIt.instance;
 
   setUp(() {
     repo = FakeStaffRepo()..venues = [_venue];
-    final panelRepo = FakePanelRepo();
+    panelRepo = FakePanelRepo();
     getIt.registerFactory<RestaurantAuthCubit>(
       () => RestaurantAuthCubit(repo),
     );
     getIt.registerFactoryParam<RestaurantHomeCubit, String, void>(
       (restaurantId, _) =>
-          RestaurantHomeCubit(repo, restaurantId: restaurantId),
+          RestaurantHomeCubit(panelRepo, restaurantId: restaurantId),
     );
     // The OTP step now lands on StaffShellScreen, which builds the
     // dashboard / orders tabs through get_it.
@@ -198,7 +227,7 @@ void main() {
 
   testWidgets('correct OTP opens the restaurant shell with reservations',
       (tester) async {
-    repo.reservations = [_booking()];
+    panelRepo.homeReservations = [_booking()];
 
     final cubit = RestaurantAuthCubit(repo);
     await cubit.restaurantLogin(phone: '557164151', countryCode: '+966');
@@ -248,7 +277,7 @@ void main() {
 
   testWidgets('tapping Confirm flips a pending row to confirmed',
       (tester) async {
-    repo.reservations = [_booking()];
+    panelRepo.homeReservations = [_booking()];
 
     await tester.pumpWidget(appShell(const ReservationsTab(restaurantId: 'r1')));
     await tester.pumpAndSettle();

@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:tavo/core/network/api_constants.dart';
 import 'package:tavo/core/network/api_error_parser.dart';
 import 'package:tavo/core/network/api_service.dart';
+import 'package:tavo/core/network/panel_envelope.dart';
+import 'package:tavo/feature/booking/data/model/booking_model.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/dashboard_stats.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/paged_result.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
@@ -102,6 +104,56 @@ class RestaurantPanelRepo {
       throw parseDioError(e);
     } catch (e) {
       throw e.toString();
+    }
+  }
+
+  /// Panel reservations for one venue (Task 13 migration target).
+  /// Nested envelope `{success, data:{data,pagination}}` via Task 1 helpers.
+  Future<List<BookingModel>> getReservations(
+    String restaurantId, {
+    int limit = 100,
+  }) async {
+    try {
+      final res = await _apiService.get(
+        '${ApiConstants.panelBase}/reservations?restaurantId=$restaurantId&limit=$limit',
+      );
+      final payload = panelPayload(res.data);
+      final result = panelUnwrapList(payload);
+      return result.items
+          .whereType<Map<String, dynamic>>()
+          .map(BookingModel.fromJson)
+          .toList();
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// Panel status transition: `PATCH {panelBase}/reservations/:id/<action>`.
+  Future<BookingModel> updateReservationAction({
+    required String restaurantId,
+    required String id,
+    required String action,
+    String? reason,
+  }) async {
+    try {
+      final res = await _apiService.patch(
+        '${ApiConstants.panelBase}/reservations/$id/$action?restaurantId=$restaurantId',
+        data: action == 'cancel'
+            ? {'reason': reason ?? 'Cancelled by restaurant'}
+            : null,
+      );
+      final data = res.data;
+      if (data is Map<String, dynamic> &&
+          data['success'] == true &&
+          data['data'] != null &&
+          data['data'] is Map<String, dynamic>) {
+        return BookingModel.fromJson(data['data'] as Map<String, dynamic>);
+      }
+      throw (data is Map<String, dynamic> && data['message'] != null)
+          ? data['message'].toString()
+          : 'Failed to update reservation';
+    } on DioException catch (e) {
+      throw parseDioError(e);
     }
   }
 

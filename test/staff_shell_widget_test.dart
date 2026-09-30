@@ -90,6 +90,34 @@ class FakePanelRepo extends RestaurantPanelRepo {
       pages: 1,
     );
   }
+
+  List<BookingModel> homeReservations = const [];
+  @override
+  Future<List<BookingModel>> getReservations(String restaurantId, {int limit = 100}) async => homeReservations;
+  @override
+  Future<BookingModel> updateReservationAction({required String restaurantId, required String id, required String action, String? reason}) async {
+    const next = {'confirm': 'confirmed', 'seat': 'seated', 'complete': 'completed', 'cancel': 'cancelled'};
+    final b = homeReservations.firstWhere((e) => e.id == id);
+    return BookingModel(
+      id: b.id,
+      restaurantId: b.restaurantId,
+      restaurantNameAr: b.restaurantNameAr,
+      restaurantNameEn: b.restaurantNameEn,
+      restaurantLogoUrl: b.restaurantLogoUrl,
+      restaurantAddress: b.restaurantAddress,
+      startAt: b.startAt,
+      endAt: b.endAt,
+      guestsCount: b.guestsCount,
+      status: next[action] ?? action,
+      tables: b.tables,
+      order: b.order,
+      specialRequests: b.specialRequests,
+      tablePreference: b.tablePreference,
+      createdAt: b.createdAt,
+      guestName: b.guestName,
+      guestPhone: b.guestPhone,
+    );
+  }
 }
 
 const _venue1 = StaffRestaurant(
@@ -167,7 +195,7 @@ void main() {
     await CacheHelper.setActiveRestaurant('');
 
     repo = FakeStaffRepo()..reservations = [_booking];
-    panelRepo = FakePanelRepo()..orders = [_order];
+    panelRepo = FakePanelRepo()..orders = [_order]..homeReservations = [_booking];
 
     getIt
       ..registerFactory<RestaurantAuthRepo>(() => repo)
@@ -181,7 +209,7 @@ void main() {
       )
       ..registerFactoryParam<RestaurantHomeCubit, String, void>(
         (restaurantId, _) =>
-            RestaurantHomeCubit(repo, restaurantId: restaurantId),
+            RestaurantHomeCubit(panelRepo, restaurantId: restaurantId),
       );
   });
 

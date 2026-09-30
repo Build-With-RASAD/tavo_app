@@ -1,12 +1,17 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
+import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
 import 'restaurant_home_state.dart';
 
 /// Venue reservations for one staff restaurant: load + status actions
-/// (confirm / seat / complete / cancel). A failed action keeps the list and
-/// surfaces [RestaurantHomeLoaded.actionError] instead of wiping the screen.
+/// (confirm → seat → complete, cancellable while pending/confirmed).
+/// Wave 1 Task 13: reads the PANEL reservations endpoints through
+/// [RestaurantPanelRepo]; the public constructor shape and the
+/// `loadReservations` / `updateStatus` names are unchanged so
+/// `ReservationsTab` and its tests do not change.
+/// A failed action keeps the list and surfaces
+/// [RestaurantHomeLoaded.actionError] instead of wiping the screen.
 class RestaurantHomeCubit extends Cubit<RestaurantHomeState> {
-  final RestaurantAuthRepo _repo;
+  final RestaurantPanelRepo _repo;
   final String restaurantId;
 
   RestaurantHomeCubit(this._repo, {required this.restaurantId})
@@ -16,8 +21,7 @@ class RestaurantHomeCubit extends Cubit<RestaurantHomeState> {
     if (isClosed) return;
     emit(RestaurantHomeLoading());
     try {
-      final reservations =
-          await _repo.getRestaurantReservations(restaurantId);
+      final reservations = await _repo.getReservations(restaurantId);
       if (isClosed) return;
       emit(RestaurantHomeLoaded(reservations));
     } catch (e) {
@@ -36,9 +40,11 @@ class RestaurantHomeCubit extends Cubit<RestaurantHomeState> {
       ),
     );
     try {
-      final updated = await _repo.updateReservationStatus(
+      final updated = await _repo.updateReservationAction(
+        restaurantId: restaurantId,
         id: id,
         action: action,
+        reason: action == 'cancel' ? 'Cancelled by restaurant' : null,
       );
       if (isClosed) return;
       emit(

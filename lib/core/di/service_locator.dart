@@ -99,7 +99,7 @@ Future<void> initServiceLocator() async {
 
   getIt.registerFactoryParam<RestaurantHomeCubit, String, void>(
     (restaurantId, _) =>
-        RestaurantHomeCubit(getIt<RestaurantAuthRepo>(), restaurantId: restaurantId),
+        RestaurantHomeCubit(getIt<RestaurantPanelRepo>(), restaurantId: restaurantId),
   );
 
   // Staff panel (dashboard / orders / reservations tabs of the shell).

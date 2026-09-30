@@ -179,3 +179,103 @@ a bare `'3'` (fake repo pending orders), which collides with a global
 `find.text('3')` once the badge value is also 3. Still `findsOneWidget` /
 `findsNothing` — same gate, no weakening.
 No plan-file contradiction: plan Task 11 section matches the brief verbatim.
+
+## Task 9 — public QR menu page (GET /menu/:slug)
+
+RED: `npm test -- tests/unit/public-menu.test.js` → suite failed to run:
+`Cannot find module '../../src/routes/public-menu.route.js'` (implementation
+not written yet — expected RED).
+GREEN (targeted): `npm test -- tests/unit/public-menu.test.js` → 6 passed,
+0 failed (HTML content-type + cache headers + X-Cache MISS/HIT, ar default /
+en switch with lang-keyed cache, XSS escaping `<script>` → `&lt;script&gt;`
+in both langs, inactive items hidden, styled 404 HTML, index.js mount check).
+No deviations: test, service, controller, route, and mount all verbatim from
+the brief. XSS load-bearing gate holds — zero `<script>` tags in templates by
+construction, every interpolated string through `escapeHtml` (`&<>"'`).
+
+## Task 6 — customers CRM backend (read-only aggregation)
+
+RED: pre-existing state — `tests/unit/customers-panel.test.js` and all four
+`src/**/customers-panel.*` files were already present from a prior attempt of
+this task (test matches the brief with two load-bearing fixes: `assignedBy`
+on `StaffAssignment.create` — schema requires it — and `_id: RID` on the
+seeded restaurant so `?restaurantId=${RID}` resolves). Import-failure RED was
+therefore already satisfied before this run; no files were created or edited
+in this pass (verification-only).
+GREEN (targeted): `npm test -- tests/unit/customers-panel.test.js` →
+12 passed, 0 failed (401 no-token, 403 view_reservations-only denied,
+nested envelope `{data, pagination}` with item shape + guest phone-key
+grouping + member userId-key, isolation from other restaurant, search by
+name case-insensitive / phone / metacharacters-as-literals (`.*(…` and `*`
+→ 200 with zero hits, no hang), pagination boundary total:2/pages:2,
+400 on limit=999, detail by userId key with orders+reservations, detail by
+guest phone case-insensitive, 404 unknown key).
+No deviations: validator, service (aggregation with `KEY_EXPR` userId-else-
+lowercased-phone, literal `includes` search, `$expr`/`$toLower` detail
+lookup — never a regex built from `:key`), controller, and route all match
+the brief. `escapeRegex` stays exported for server-side literal matching.
+Review Focus gates hold: restaurantId matched first in every aggregation (3),
+search is literal-only (4).
+Baseline: `npm test -- tests/unit` → 43 suites, 430 tests: 424 passed,
+6 failed — all 6 in sibling in-progress suites (`branches-panel`: route
+module missing, still RED; `contact-panel` Task 8: 403s + serialization
+mismatches). `customers-panel` 12/12 green; no regressions in any suite
+this task owns or touches. Mount NOT applied (controller owns
+`restaurant-owner.routes.js`): snippet reported below.
+Mount snippet:
+```js
+// restaurant-owner.routes.js — one line, before `export default router;`
+import customersPanelRoutes from "./customers-panel.route.js";
+router.use(customersPanelRoutes);
+```
+
+## Task 13 — reservations migration (panel API) — implementer evidence
+
+RED (`flutter test test/panel_reservations_test.dart`, before Step 4):
+- `restaurant_home_cubit.dart:25` — `getRestaurantReservations` isn't defined
+  for `RestaurantPanelRepo`.
+- `restaurant_home_cubit.dart:44` — `updateReservationStatus` isn't defined
+  for `RestaurantPanelRepo`.
+- `restaurant_panel_repo.dart:121` — brief-verbatim `final (rows, _) =
+  panelUnwrapList(payload)` does not compile against the Task 1 helper's
+  NAMED record `({List<dynamic> items, ...})`; adapted to
+  `result.items` (same rows, same mapping).
+- `service_locator.dart:102` — `RestaurantAuthRepo` no longer assignable to
+  the cubit's `RestaurantPanelRepo` param (controller-owned Diff A).
+
+GREEN (after Steps 3–4): 4/4 cubit unit tests pass —
+`load hits the panel endpoint with limit=100 and emits rows`,
+`load failure emits the error state`,
+`updateStatus confirm swaps the row through the panel action`,
+`updateStatus failure keeps the list and surfaces actionError`.
+Proven via a temporary scaffold copy of the 4 unit tests (no
+`reservations_tab` import): `00:00 +4: All tests passed!` — scaffold deleted
+after the run. The 5th test in `panel_reservations_test.dart` (widget test)
+cannot load until the controller applies Diff A: `reservations_tab.dart`
+transitively imports `service_locator.dart`, which fails compilation at
+line 102 by design of this migration.
+`flutter analyze`: 28 issues = baseline 24 + 4 transitional compile errors
+in controller-owned files (service_locator, restaurant_flow_widget_test,
+restaurant_home_cubit_test, staff_shell_widget_test); 0 issues in the three
+task files (one `unintended_html_in_doc_comment` info on the new repo doc
+comment fixed with backticks around `<action>`).
+
+Reported diffs (controller applies — implementer touched neither file):
+- Diff A (service_locator.dart:100-103): factoryParam switches
+  `getIt<RestaurantAuthRepo>()` → `getIt<RestaurantPanelRepo>()`.
+- Diff B (restaurant_flow_widget_test.dart): `FakePanelRepo` gains
+  `homeReservations`-backed `getReservations`/`updateReservationAction`
+  overrides (brief snippet); the `registerFactoryParam<RestaurantHomeCubit>`
+  points at `panelRepo`; the two `repo.reservations = [_booking()];` seeds
+  (lines ~201, ~251) move to the panel fake.
+- Diff C (staff_shell_widget_test.dart): same two overrides on its
+  `FakePanelRepo` backed by its existing `reservations` fixture; the
+  `registerFactoryParam<RestaurantHomeCubit>` line changes
+  `RestaurantHomeCubit(repo, ...)` → `RestaurantHomeCubit(panelRepo, ...)`.
+- Diff D (NOT in brief — required): `restaurant_home_cubit_test.dart`
+  `FakeHomeRepo extends RestaurantAuthRepo` no longer satisfies the cubit's
+  constructor; it must extend `RestaurantPanelRepo` with the new method
+  names (`getReservations(restaurantId, {limit})`,
+  `updateReservationAction(restaurantId:, id:, action:, reason:)`), keeping
+  all 5 existing assertions (`loadCalls`, error, confirm-flips-row,
+  failed-action-keeps-list, close-during-load).
