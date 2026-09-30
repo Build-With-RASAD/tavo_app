@@ -295,3 +295,82 @@ GREEN after 1-line test-setup fix (`_id: RID` in Restaurant.create): 8 passed. N
 ## Task 10 — menu image upload backend — orphan-verified
 RED reconstructed: implementation files (route/service/controller) moved to /tmp → suite failed to run (`Cannot find module`, 0 total); restored → GREEN 7 passed, 7 total.
 FULL at adoption: 43 suites / 441 tests, all green.
+
+## Task 17 — waitlist UI (queue, filters, transitions, shell badge feed)
+RED captured: `flutter test test/panel_waitlist_test.dart` → compile errors
+(`panel_waitlist` package doesn't exist; Task 11 placeholder).
+GREEN: 8 passed, 8 total. FULL: 152/152 green (119 baseline + 8 task-17 +
+25 from concurrent sibling tasks). Analyze: 26 issues = 24 baseline + 2
+from concurrent siblings (panel_settings prefer_const, panel_tables curly
+braces); 0 from task-17 files.
+Brief deviations (all test-side or compile-required, no assertion weakened):
+- Added missing `async_state_view.dart` import (ListSkeleton used unimported).
+- Fake gains 10ms Timer latency in getWaitlist/transition (instant fake
+skips the skeleton/spinner frames; real repo is a network call) + one
+extra `pump()` before the skeleton expect (frame 1 is EasyLocalization).
+- `failure` set AFTER `load()` in the cubit failure test (one-shot fake
+would fail the load instead; mirrors panel_reservations_test.dart).
+- `e2` gets `ticket: 'A2'` (both entries default to 'A1', ambiguous finder).
+- 'Notified'/'Cancelled' expects scoped to `wait_<id>` card (filter chips
+render the same labels).
+- Repo uses named record destructure `(items: rows, pagination: …)` (brief
+positional form doesn't compile against panel_envelope.dart; menu pattern).
+- `register_waitlist_module.dart` drops the unused `get_it` import
+(`getIt` comes from service_locator; menu pattern); state file drops the
+model re-export (caused 3 cascading unnecessary_import infos).
+- `WaitlistTab` renders the Task 11 empty visual when `WaitlistPanelRepo`
+is not registered (shell IndexedStack mounts every tab; shell suites predate
+the module registration, which the controller wires via the one-liner).
+Badge contract: `waitlistBadgeCount.value` set on every successful load
+(+ after successful transitions); covered by shell badge test (green).
+i18n: 12 keys × en/ar via script (verified present; `no_show` en is now
+'No-show'). Controller wiring (NOT applied — service_locator untouched):
+`import 'package:tavo/feature/panel_waitlist/di/register_waitlist_module.dart';`
++ `registerWaitlistModule();`
+
+## Task 15 — Staff UI (list, add/edit, permissions, suspend/activate/delete)
+RED: `flutter test test/panel_staff_test.dart` → compile error (`panel_staff` package doesn't exist: staff_models.dart / staff_panel_repo.dart / staff_panel_cubit.dart missing).
+GREEN: 8 passed (`flutter test test/panel_staff_test.dart` → `00:01 +8: All tests passed!`).
+Fixes vs brief snippet (no assertion changed): added the missing `async_state_view.dart` import (`ListSkeleton`); `_pumpStaff` gains the `pumpUntil`-skeleton amendment (same EasyLocalization timing rationale as panel_menu_test); sheets use `Material` instead of a decorated `Container` so (Checkbox)`ListTile` ink has a proper ancestor (debug assertion otherwise).
+Suites touched all green: panel_staff 8/8, more_hub 3/3, panel_menu 8/8, panel_models 7/7, panel_envelope 4/4, panel_reservations 5/5, panel_settings 6/6.
+Analyze: 26 issues total, 0 in task-15 files (the +2 over the 24 baseline sit in `panel_settings_screen.dart` and `tables_panel_repo.dart` — concurrent sibling tasks).
+Full suite: 11–13 failures in `staff_shell_widget_test` / `panel_waitlist_test` / `restaurant_flow_widget_test`, all `GetIt: WaitlistPanelRepo is not registered` (sibling waitlist module not yet wired) — unrelated to this task; `staff_shell_widget_test` contains zero references to StaffScreen/panel_staff.
+service_locator addition for the controller:
+  import 'package:tavo/feature/panel_staff/di/register_staff_module.dart';
+  registerStaffModule();
+
+## Task 14 — Reviews UI + Tables/floor-plan UI
+RED: `flutter test test/panel_reviews_test.dart test/panel_tables_test.dart` → compile errors (`panel_reviews` / `panel_tables` packages don't exist).
+GREEN: 11 passed (7 + 4) (`00:05 +11: All tests passed!`).
+Fixes vs brief snippet (no assertion changed):
+- Added the missing `async_state_view.dart` import to `panel_reviews_test.dart` (`ListSkeleton`; same omission pattern as other briefs).
+- `_pumpReviews`/`_pumpTables` gain the `pumpUntil`-skeleton amendment (EasyLocalization builds the child subtree asynchronously; mirrors panel_menu_test.dart).
+- Respond-failure cubit test arms `repo.failure` AFTER `cubit.load()`: the verbatim version injects the one-shot failure before load, so the failure fires on `getReviews` (state → `ReviewsPanelError`) and the `as ReviewsPanelLoaded` cast can never succeed. Failure now fires on `respondReview` as the test name requires.
+- Repos use named record destructure `(items: rows, pagination: …)` (brief positional form doesn't compile against panel_envelope.dart; menu pattern).
+- `register_*_module.dart` drop the brief's unused `_can` helper (gate lives in the screens via `venue`; an unused private function would add an `unused_element` analyze issue). Added the `isRegistered` repo guard (menu pattern; re-runs safe).
+- Unanswered review cards render BOTH `no_response_yet` text and the respond button (brief test expects both on an owner venue).
+- Status rows render seats+status without table codes (editor + tray already render each code exactly once; keeps the `IN-2 findsOneWidget` tray assertion intact).
+Suites touched all green: panel_reviews 7/7, panel_tables 4/4.
+Analyze: 25 issues total, 0 in task-14 files (the +1 over the 24 baseline sits in `panel_settings_screen.dart` — a concurrent sibling task).
+Full suite: `+152: All tests passed!` (EXIT:0; baseline 119 + this task's 11 + siblings' additions, no failures).
+i18n: 16 keys × en/ar via script (`seats` already existed → script reported 15 added; all 16 keys verified present).
+Controller wiring (NOT applied — service_locator untouched):
+  import 'package:tavo/feature/panel_reviews/di/register_reviews_module.dart';
+  import 'package:tavo/feature/panel_tables/di/register_tables_module.dart';
+  registerReviewsModule();
+  registerTablesModule();
+
+## Task 16 — Settings UI (working hours, reservation settings, availability)
+RED: `flutter test test/panel_settings_test.dart` → compile errors (`panel_settings` package doesn't exist: `SettingsPanelRepo` isn't a type, `PanelSettingsScreen`/`SettingsPanelCubit`/`SettingsPanelLoaded` not found; 0 tests ran).
+GREEN: 6 passed (`00:03 +6: All tests passed!`).
+Deviations from brief snippet (no assertion changed):
+- Panel prefix per spawner class-ownership rule: real screen is `PanelSettingsScreen` in `lib/feature/panel_settings/ui/screens/panel_settings_screen.dart`; Task 11's `restaurant_panel/.../settings_screen.dart` placeholder untouched. Test imports adapted to the new path/class only.
+- Brief-verbatim record-inference defects fixed (assertions untouched): repo `getSettings`/`getAvailability` use `List<WorkingDayEntry>.from(...)` + `const <String, dynamic>{}` (bare `const []`/`const {}` infer `List<dynamic>`/`Map<dynamic,dynamic>` and don't compile); test fake's `celebrationFeatures` likewise typed.
+- Both saves live in a pinned `bottomNavigationBar` (same keys `save_hours`/`save_settings`, spinner while `saving`) instead of inside the scroll: the full form is taller than the 800x600 test viewport and the brief test taps `save_settings` without scrolling (tap missed at y=820 pre-fix). Form state reached via `GlobalKey<_LoadedFormState>`; view-only venues get no bottom bar.
+- Cubit `load()` fetches settings + availability via `Future.wait` and seeds `kWeekDays` defaults for backend-missing days; saves set `saving` then clear it, failures keep the form + `actionError`.
+i18n: 16 keys x en/ar via script (`working_hours`, `closed`, `settings_day_saturday` pre-existed; all 19 keys verified present in both files).
+Suites touched all green: panel_settings 6/6. Full suite: `+152: All tests passed!` (an earlier mid-run showed 11 transient failures in siblings' in-progress suites — panel_reviews/panel_waitlist/onboarding — all green on re-run; no regressions in suites this task touches).
+Analyze: 24 issues total = baseline, 0 in task-16 files (a transient `prefer_const_constructors_in_immutables` on `_LoadedForm` fixed by re-adding `const` to the declaration).
+Controller wiring (NOT applied — service_locator untouched):
+  import 'package:tavo/feature/panel_settings/di/register_settings_module.dart';
+  registerSettingsModule();
