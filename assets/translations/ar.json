@@ -48,16 +48,11 @@
   "tab_home": "الرئيسية",
   "tab_restaurants": "المطاعم",
   "tab_reservations": "الحجوزات",
-  "tab_account": "حسابي"
-  ,
-  
-
+  "tab_account": "حسابي",
   "email_hint": "البريد الإلكتروني",
   "email_required": "البريد الإلكتروني مطلوب",
   "email_invalid": "البريد الإلكتروني غير صحيح",
-
   "name": "الاسم",
-
   "no_restaurants": "لا توجد مطاعم",
   "retry": "إعادة المحاولة",
   "restaurants": "المطاعم",
@@ -80,7 +75,7 @@
   "currency": "ر.س",
   "all": "الكل",
   "no_menu_items": "لا توجد عناصر في القائمة",
-  "unavailable": "غير متوفر",
+  "unavailable": "غير متاح",
   "customize_meal": "تخصيص وجبة",
   "cooking_method": "طريقة الطهي",
   "side_dishes": "الإضافات الجانبية",
@@ -88,14 +83,12 @@
   "notes": "ملاحظات",
   "notes_hint": "يمكنك كتابة أي ملاحظات هنا..",
   "confirm_customization": "تأكيد التخصيص",
-
   "onboarding_title_1": "اكتشف أفضل المطاعم",
   "onboarding_subtitle_1": "ابحث عن أفضل الأماكن والوجبات القريبة منك بسهولة",
   "onboarding_title_2": "احجز بسرعة",
   "onboarding_subtitle_2": "احجز طاولتك في ثوانٍ بدون أي تعقيد",
   "onboarding_title_3": "استمتع بتجربتك",
   "onboarding_subtitle_3": "عش تجربة طعام رائعة مع أفضل العروض",
-  
   "get_started": "ابدأ الآن",
   "notifications": "الإشعارات",
   "no_notifications": "لا توجد إشعارات",
@@ -115,7 +108,6 @@
   "welcome": "مرحباً",
   "map": "الخريطة",
   "add_location": "إضافة موقع",
-
   "today": "اليوم",
   "sunday": "الأحد",
   "monday": "الإثنين",
@@ -124,30 +116,23 @@
   "thursday": "الخميس",
   "friday": "الجمعة",
   "saturday": "السبت",
-   
   "call": "اتصال",
   "location": "الموقع",
-  
-  
   "no_items_in_category": "لا توجد عناصر في هذا التصنيف",
-"app_name": "تافو",
+  "app_name": "تافو",
   "version": "الإصدار {version}",
- 
   "delete": "حذف",
   "edit": "تعديل",
   "loading": "جاري التحميل...",
-  
   "close": "إغلاق",
   "search": "بحث",
   "no_data": "لا توجد بيانات",
   "all_rights_reserved": "© 2025 Tavo. جميع الحقوق محفوظة",
   "last_update": "آخر تحديث: يناير 2025",
-
   "my_profile": "ملفي الشخصي",
   "personal_info": "بياناتي الشخصية",
   "bookings": "الحجوزات",
   "favorites": "المفضلة",
-  
   "support_and_help": "الدعم والمساعدة",
   "help_and_faq": "المساعدة والأسئلة الشائعة",
   "contact_us": "تواصل معنا",
@@ -155,7 +140,6 @@
   "privacy_policy": "سياسة الخصوصية",
   "terms_and_conditions": "الشروط والأحكام",
   "about_app": "عن التطبيق",
-
   "delete_account": "حذف الحساب",
   "logout_confirm_title": "تسجيل خروج",
   "logout_confirm_message": "هل أنت متأكد من تسجيل الخروج؟",
@@ -165,12 +149,9 @@
   "booking": "حجز",
   "favorite": "مفضلة",
   "review": "تقييم",
-
   "my_personal_info": "بياناتي الشخصية",
-  "name": "الاسم",
   "enter_your_name": "أدخل اسمك",
   "phone_number": "رقم الجوال",
-  "phone_hint": "رقم جوالك",
   "please_enter_name": "الرجاء إدخال الاسم",
   "please_enter_phone": "الرجاء إدخال رقم الجوال",
   "save_changes": "حفظ التعديلات",
@@ -178,38 +159,31 @@
   "select_image_source": "اختر مصدر الصورة",
   "camera": "الكاميرا",
   "gallery": "المعرض",
-
   "my_stats": "إحصائياتي",
   "total_reservations": "إجمالي الحجوزات",
   "total_orders": "إجمالي الطلبات",
   "total_spent": "إجمالي الم spending",
-  "currency": "ر.س",
   "loyalty_points": "نقاط الولاء",
   "current_points": "النقاط الحالية",
   "tier": "المستوى",
   "lifetime_points": "النقاط المتراكمة",
-
   "select_language": "اختر اللغة",
   "arabic": "العربية",
   "english": "English",
   "arabic_native": "العربية",
   "english_native": "الإنجليزية",
-
   "about_tavo": "عن تافو",
   "about_description": "تطبيق تافو هو منصة لحجز المطاعم بسهولة وسرعة. يمكنك استعراض أفضل المطاعم، قراءة التقييمات، وحجز طاولتك المفضلة بضغطة زر واحدة.",
   "email": "البريد الإلكتروني",
   "phone": "رقم التواصل",
   "website": "الموقع الإلكتروني",
-
   "how_can_we_help": "كيف يمكننا مساعدتك؟",
   "contact_description": "تواصل معنا عبر أي من القنوات التالية وسنرد عليك في أقرب وقت",
   "call_us": "اتصل بنا",
   "whatsapp": "واتساب",
-
   "sunday_to_thursday": "الأحد - الخميس",
   "friday_and_saturday": "الجمعة - السبت",
   "follow_us": "تابعنا",
-
   "help": "المساعدة",
   "faq_title": "كيف يمكننا مساعدتك؟",
   "faq_subtitle": "تصفح الأسئلة الشائعة أدناه",
@@ -229,7 +203,6 @@
   "faq_7_answer": "يمكنك التواصل معنا عبر البريد الإلكتروني support@tavo.app أو عبر واتساب على الرقم +966 50 000 0000.",
   "faq_8_question": "هل يمكنني الحجز لمجموعة كبيرة؟",
   "faq_8_answer": "نعم، يمكنك الحجز لمجموعات تصل إلى 20 شخصاً عبر التطبيق. للمجموعات الأكبر، يرجى التواصل مع المطعم مباشرة.",
-
   "privacy_matters": "خصوصيتك تهمنا",
   "privacy_subtitle": "نحن ملتزمون بحماية بياناتك الشخصية",
   "collecting_info": "جمع المعلومات",
@@ -248,7 +221,6 @@
   "children_privacy_content": "خدماتنا غير موجهة للأطفال دون سن 13 عاماً. نحن لا نجمع عن قصد معلومات شخصية من الأطفال. إذا علمنا أننا جمعنا معلومات من طفل، سنقوم بحذفها فوراً.",
   "updates": "التحديثات",
   "updates_content": "قد نقوم بتحديث سياسة الخصوصية هذه من وقت لآخر. سنخطرك بأي تغييرات جوهرية عبر إشعار في التطبيق أو بالبريد الإلكتروني. يعتبر استمرارك في استخدام التطبيق بعد التحديث موافقة على التغييرات.",
-
   "terms_of_use": "شروط الاستخدام",
   "terms_subtitle": "يرجى قراءة الشروط بعناية قبل استخدام التطبيق",
   "accept_terms": "القبول بالشروط",
@@ -269,20 +241,9 @@
   "account_termination_content": "نحتفظ بحق تعليق أو إنهاء حسابك في حال مخالفة هذه الشروط. يمكنك أيضاً حذف حسابك في أي وقت من خلال إعدادات التطبيق.",
   "modifications": "التعديلات",
   "modifications_content": "نحتفظ بحق تعديل هذه الشروط في أي وقت. سيتم إخطارك بأي تغييرات جوهرية. استمرارك في استخدام التطبيق يعتبر موافقة على الشروط المحدثة.",
-  
- 
-
   "currency_sar": "ر.س",
-  
   "yesterday": "أمس",
-
-
-
-
-
   "mark_all_as_read": "تحديد الكل كمقروء",
- 
-
   "in_progress": "قيد التنفيذ",
   "completed": "مكتملة",
   "cancelled": "ملغية",
@@ -296,11 +257,10 @@
   "tax": "الضريبة",
   "total": "المجموع",
   "order_items": "عناصر الطلب",
-
   "back": "رجوع",
   "required": "مطلوب",
   "optional": "اختياري",
-  "selected": "مختار",
+  "selected": "محدد",
   "select_one_option": "اختر خيار واحد",
   "select_multiple_options": "يمكنك اختيار أكثر من خيار",
   "free": "مجاناً",
@@ -311,20 +271,14 @@
   "no_internet": "لا يوجد اتصال بالإنترنت",
   "something_went_wrong": "حدث خطأ ما",
   "request_cancelled": "تم إلغاء الطلب",
-  
-  "confirmed": "تم التأكيد"
-
-, "order_items": "عناصر الطلب",
-  "total": "المجموع",
+  "confirmed": "تم التأكيد",
   "status": "الحالة",
   "date": "التاريخ",
   "draft": "مسودة",
   "pending": "قيد الانتظار",
   "no_show": "لم يحضر",
   "finished_meal": "انتهى الطعام",
- 
   "in_progress_status": "قيد التنفيذ",
-  
   "book_table": "احجز طاولة",
   "select_date": "اختر التاريخ",
   "select_time": "اختر الوقت",
@@ -339,24 +293,17 @@
   "confirm_booking": "تأكيد الحجز",
   "booking_created": "تم إنشاء الحجز بنجاح!",
   "available": "متاح",
-  "unavailable": "غير متاح",
-  "selected": "محدد",
   "seats": "مقاعد",
   "time": "الوقت",
   "tables": "طاولات",
   "select_your_table": "اختر طاولتك",
   "tap_to_select_table": "انقر على طاولة لتحديدها",
   "checking_availability": "جاري التحقق من التوفر...",
-  "next": "التالي",
-  "back": "رجوع",
   "booking_summary": "ملخص الحجز",
   "table": "طاولة",
   "capacity": "السعة",
-  "date": "التاريخ",
   "order_will_be_linked": "سيتم ربط الطلب بهذا الحجز",
   "your_table_reserved": "تم حجز طاولتك!",
-  "select_date": "اختر التاريخ",
-  "select_time": "اختر الوقت",
   "date_and_time": "التاريخ والوقت",
   "restaurant_login_title": "دخول المطاعم",
   "restaurant_login_subtitle": "سجّل الدخول برقم هاتف الموظف لإدارة مطعمك",
@@ -381,5 +328,36 @@
   "payment_failed": "فشل الدفع",
   "payment_refunded": "مسترد",
   "switch_restaurant": "تبديل المطعم",
-  "recent_reviews": "أحدث التقييمات"
+  "recent_reviews": "أحدث التقييمات",
+  "more": "المزيد",
+  "waitlist": "قائمة الانتظار",
+  "waitlist_empty": "لا أحد في الانتظار حالياً",
+  "hub_empty": "لا توجد عناصر بعد",
+  "customers": "العملاء",
+  "staff": "الفريق",
+  "branches": "الفروع",
+  "reviews": "التقييمات",
+  "contact_qr": "التواصل والرمز",
+  "add_category": "إضافة فئة",
+  "add_item": "إضافة صنف",
+  "edit_item": "تعديل الصنف",
+  "category_name_ar": "اسم الفئة (عربي)",
+  "category_name_en": "اسم الفئة (إنجليزي)",
+  "item_name_ar": "اسم الصنف (عربي)",
+  "item_name_en": "اسم الصنف (إنجليزي)",
+  "price_sar": "السعر (ريال)",
+  "delete_category": "حذف الفئة",
+  "delete_item": "حذف الصنف",
+  "add_photo": "إضافة صورة",
+  "remove_photo": "إزالة الصورة",
+  "empty_menu_title": "لا توجد أصناف بعد",
+  "empty_menu_message": "أنشئ فئة ثم أضف أول صنف.",
+  "category": "الفئة",
+  "price": "السعر",
+  "active": "مفعل",
+  "inactive": "موقوف",
+  "page_of": "صف {i} من {n}",
+  "menu_filter_all": "الكل",
+  "menu_filter_active": "مفعل",
+  "menu_filter_inactive": "موقوف"
 }

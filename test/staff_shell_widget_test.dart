@@ -20,6 +20,8 @@ import 'package:tavo/feature/booking/data/model/booking_model.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_cubit.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_cubit.dart';
+import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
+import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_screen.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_login_screen.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/staff_shell_screen.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/dashboard_stats.dart';
@@ -254,5 +256,46 @@ void main() {
     expect(repo.logoutCalls, 1);
     expect(find.byType(RestaurantLoginScreen), findsOneWidget);
     expect(find.byType(StaffShellScreen), findsNothing);
+  });
+
+  testWidgets('shell exposes five tabs with the More hub last', (tester) async {
+    await tester.pumpWidget(appShell(StaffShellScreen(restaurants: _venues)));
+    await tester.pumpAndSettle();
+
+    final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(bar.destinations, hasLength(5));
+    expect(_selectedIndex(tester), 0);
+
+    await tester.tap(_tab('More'));
+    await tester.pumpAndSettle();
+    expect(_selectedIndex(tester), 4);
+    expect(find.byType(MoreHubScreen), findsOneWidget);
+
+    await tester.tap(_tab('Reservations'));
+    await tester.pumpAndSettle();
+    expect(_selectedIndex(tester), 2);
+    // the reservations tab still shows the guest row after the rework
+    expect(find.text('Layla Haddad', skipOffstage: false), findsOneWidget);
+  });
+
+  testWidgets('waitlist badge appears once a queue count is published',
+      (tester) async {
+    waitlistBadgeCount.value = 3;
+    addTearDown(() => waitlistBadgeCount.value = 0);
+
+    await tester.pumpWidget(appShell(StaffShellScreen(restaurants: _venues)));
+    await tester.pumpAndSettle();
+
+    // Scoped to the NavigationBar: the dashboard also renders a bare '3'
+    // (pending orders from the fake panel repo), so a global find.text('3')
+    // would collide with content. Exactly one badge label lives in the bar.
+    final badgeInBar = find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text('3'),
+    );
+    expect(badgeInBar, findsOneWidget); // Badge label on the Waitlist tab
+    waitlistBadgeCount.value = 0;
+    await tester.pumpAndSettle();
+    expect(badgeInBar, findsNothing);
   });
 }

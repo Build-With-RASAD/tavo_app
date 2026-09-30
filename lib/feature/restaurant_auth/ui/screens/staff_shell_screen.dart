@@ -6,13 +6,17 @@ import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
+import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
+import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_screen.dart';
+import 'package:tavo/feature/restaurant_auth/ui/more/shell_defaults.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/reservations_tab.dart';
+import 'package:tavo/feature/restaurant_auth/ui/screens/waitlist_tab.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_login_screen.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/orders_screen.dart';
 
-/// Staff landing after OTP / cold start: one app bar over three tabs
-/// (dashboard / orders / reservations) for the active venue.
+/// Staff landing after OTP / cold start: one app bar over five tabs
+/// (dashboard / orders / reservations / waitlist / more) for the active venue.
 ///
 /// Owns the active venue: it starts from `CacheHelper.getActiveRestaurant()`
 /// when that id is still in [restaurants], otherwise from the first venue,
@@ -37,6 +41,7 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
   @override
   void initState() {
     super.initState();
+    registerShellDefaults(); // idempotent placeholder hub tiles
     final cached = CacheHelper.getActiveRestaurant();
     final ids = widget.restaurants.map((r) => r.restaurantId);
     if (cached != null && ids.contains(cached)) {
@@ -115,20 +120,17 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
               child: IndexedStack(
                 index: _tabIndex,
                 children: [
-                  DashboardScreen(
-                    restaurantId: _activeId,
-                    venue: _venue,
-                  ),
+                  DashboardScreen(restaurantId: _activeId, venue: _venue),
                   OrdersScreen(restaurantId: _activeId),
                   ReservationsTab(restaurantId: _activeId),
+                  WaitlistTab(restaurantId: _activeId, venue: _venue),
+                  MoreHubScreen(restaurantId: _activeId, venue: _venue),
                 ],
               ),
             ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
         onDestinationSelected: (index) => setState(() => _tabIndex = index),
-        // NavigationDestination has no built-in i18n hook — the labels are
-        // resolved here (keys: dashboard / orders / my_reservations).
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.dashboard_outlined),
@@ -144,6 +146,28 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
             icon: const Icon(Icons.event_seat_outlined),
             selectedIcon: const Icon(Icons.event_seat),
             label: 'my_reservations'.tr(),
+          ),
+          NavigationDestination(
+            icon: ValueListenableBuilder<int>(
+              valueListenable: waitlistBadgeCount,
+              builder: (_, count, child) => count > 0
+                  ? Badge(label: Text('$count'), child: child!)
+                  : child!,
+              child: const Icon(Icons.queue_music_outlined),
+            ),
+            selectedIcon: ValueListenableBuilder<int>(
+              valueListenable: waitlistBadgeCount,
+              builder: (_, count, child) => count > 0
+                  ? Badge(label: Text('$count'), child: child!)
+                  : child!,
+              child: const Icon(Icons.queue_music),
+            ),
+            label: 'waitlist'.tr(),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.grid_view_outlined),
+            selectedIcon: const Icon(Icons.grid_view),
+            label: 'more'.tr(),
           ),
         ],
       ),

@@ -1,7 +1,7 @@
 {
   "login_title": "Sign In",
   "login_subtitle": "Create your account to start your journey with Tavo",
-  "phone_hint": "Phone Number",
+  "phone_hint": "Your phone number",
   "phone_required": "Please enter your phone number",
   "send_otp": "Send Verification Code",
   "or_join_via": "Or join via",
@@ -49,13 +49,10 @@
   "tab_restaurants": "Restaurants",
   "tab_reservations": "Reservations",
   "tab_account": "Account",
-
   "email_hint": "Email",
   "email_required": "Email is required",
   "email_invalid": "Invalid email address",
-
   "name": "Name",
-
   "no_restaurants": "No restaurants found",
   "retry": "Retry",
   "restaurants": "Restaurants",
@@ -86,14 +83,12 @@
   "notes": "Notes",
   "notes_hint": "You can write any notes here..",
   "confirm_customization": "Confirm Customization",
-
   "onboarding_title_1": "Discover the Best Restaurants",
   "onboarding_subtitle_1": "Find the best places and meals near you easily",
   "onboarding_title_2": "Book Quickly",
   "onboarding_subtitle_2": "Reserve your table in seconds without any hassle",
   "onboarding_title_3": "Enjoy Your Experience",
   "onboarding_subtitle_3": "Live a great dining experience with the best offers",
-
   "get_started": "Get Started",
   "notifications": "Notifications",
   "no_notifications": "No notifications",
@@ -113,7 +108,6 @@
   "welcome": "Welcome",
   "map": "Map",
   "add_location": "Add Location",
-
   "today": "Today",
   "sunday": "Sunday",
   "monday": "Monday",
@@ -122,31 +116,23 @@
   "thursday": "Thursday",
   "friday": "Friday",
   "saturday": "Saturday",
-  
-  
   "call": "Call",
   "location": "Location",
-  
   "no_items_in_category": "No items in this category",
   "app_name": "Tavo",
   "version": "Version {version}",
-
   "delete": "Delete",
   "edit": "Edit",
   "loading": "Loading...",
-
   "close": "Close",
   "search": "Search",
   "no_data": "No data available",
   "all_rights_reserved": "© 2025 Tavo. All rights reserved",
   "last_update": "Last updated: January 2025",
-
-
   "my_profile": "My Profile",
   "personal_info": "Personal Information",
   "bookings": "Bookings",
   "favorites": "Favorites",
-
   "support_and_help": "Support & Help",
   "help_and_faq": "Help & FAQ",
   "contact_us": "Contact Us",
@@ -154,7 +140,6 @@
   "privacy_policy": "Privacy Policy",
   "terms_and_conditions": "Terms & Conditions",
   "about_app": "About App",
-
   "delete_account": "Delete Account",
   "logout_confirm_title": "Logout",
   "logout_confirm_message": "Are you sure you want to logout?",
@@ -164,12 +149,9 @@
   "booking": "Booking",
   "favorite": "Favorite",
   "review": "Review",
-
   "my_personal_info": "My Personal Information",
-  "name": "Name",
   "enter_your_name": "Enter your name",
   "phone_number": "Phone Number",
-  "phone_hint": "Your phone number",
   "please_enter_name": "Please enter your name",
   "please_enter_phone": "Please enter your phone number",
   "save_changes": "Save Changes",
@@ -177,38 +159,31 @@
   "select_image_source": "Select Image Source",
   "camera": "Camera",
   "gallery": "Gallery",
-
   "my_stats": "My Stats",
   "total_reservations": "Total Reservations",
   "total_orders": "Total Orders",
   "total_spent": "Total Spent",
-  "currency": "SAR",
   "loyalty_points": "Loyalty Points",
   "current_points": "Current Points",
   "tier": "Tier",
   "lifetime_points": "Lifetime Points",
-
   "select_language": "Select Language",
   "arabic": "العربية",
   "english": "English",
   "arabic_native": "Arabic",
   "english_native": "English",
-
   "about_tavo": "About Tavo",
   "about_description": "Tavo is a platform for easy and fast restaurant reservations. You can browse the best restaurants, read reviews, and book your favorite table with just one click.",
   "email": "Email",
   "phone": "Phone",
   "website": "Website",
-
   "how_can_we_help": "How can we help you?",
   "contact_description": "Contact us through any of the following channels and we will respond as soon as possible",
   "call_us": "Call Us",
   "whatsapp": "WhatsApp",
-
   "sunday_to_thursday": "Sunday - Thursday",
   "friday_and_saturday": "Friday - Saturday",
   "follow_us": "Follow Us",
-
   "help": "Help",
   "faq_title": "How can we help you?",
   "faq_subtitle": "Browse the frequently asked questions below",
@@ -228,7 +203,6 @@
   "faq_7_answer": "You can contact us via email at support@tavo.app or via WhatsApp at +966 50 000 0000.",
   "faq_8_question": "Can I book for a large group?",
   "faq_8_answer": "Yes, you can book for groups of up to 20 people through the app. For larger groups, please contact the restaurant directly.",
-
   "privacy_matters": "Your Privacy Matters",
   "privacy_subtitle": "We are committed to protecting your personal data",
   "collecting_info": "Information Collection",
@@ -247,7 +221,6 @@
   "children_privacy_content": "Our services are not directed to children under the age of 13. We do not knowingly collect personal information from children. If we learn that we have collected information from a child, we will delete it immediately.",
   "updates": "Updates",
   "updates_content": "We may update this privacy policy from time to time. We will notify you of any material changes through an in-app notification or email. Your continued use of the app after the update constitutes acceptance of the changes.",
-
   "terms_of_use": "Terms of Use",
   "terms_subtitle": "Please read the terms carefully before using the app",
   "accept_terms": "Acceptance of Terms",
@@ -267,24 +240,15 @@
   "account_termination": "Account Termination",
   "account_termination_content": "We reserve the right to suspend or terminate your account if you violate these terms. You can also delete your account at any time through the app settings.",
   "modifications": "Modifications",
-  "modifications_content": "We reserve the right to modify these terms at any time. You will be notified of any material changes. Your continued use of the app constitutes acceptance of the updated terms.",  
+  "modifications_content": "We reserve the right to modify these terms at any time. You will be notified of any material changes. Your continued use of the app constitutes acceptance of the updated terms.",
   "currency_sar": "SAR",
-
   "yesterday": "Yesterday",
-
-
-
-
-
-
   "mark_all_as_read": "Mark all as read",
-
-
   "in_progress": "In Progress",
   "completed": "Completed",
   "cancelled": "Cancelled",
   "no_bookings": "No bookings",
-"booking_number": "Booking Number",
+  "booking_number": "Booking Number",
   "view_details": "View Details",
   "rate": "Rate",
   "cancel_booking": "Cancel Booking",
@@ -293,11 +257,10 @@
   "tax": "Tax",
   "total": "Total",
   "order_items": "Order Items",
-
   "back": "Back",
   "required": "Required",
   "optional": "Optional",
-  "selected": "selected",
+  "selected": "Selected",
   "select_one_option": "Select one option",
   "select_multiple_options": "You can select multiple options",
   "free": "Free",
@@ -308,19 +271,14 @@
   "no_internet": "No internet connection",
   "something_went_wrong": "Something went wrong",
   "request_cancelled": "Request cancelled",
-   
-  "confirmed": "Confirmed"  ,
-  "order_items": "Order Items",
-  "total": "Total",
+  "confirmed": "Confirmed",
   "status": "Status",
   "date": "Date",
   "draft": "Draft",
   "pending": "Pending",
   "no_show": "No Show",
   "finished_meal": "Finished",
-  
   "in_progress_status": "In Progress",
-  
   "book_table": "Book Table",
   "select_date": "Select Date",
   "select_time": "Select Time",
@@ -335,24 +293,17 @@
   "confirm_booking": "Confirm Booking",
   "booking_created": "Booking created successfully!",
   "available": "Available",
-  "unavailable": "Unavailable",
-  "selected": "Selected",
   "seats": "seats",
   "time": "Time",
   "tables": "Tables",
   "select_your_table": "Select Your Table",
   "tap_to_select_table": "Tap on a table to select it",
   "checking_availability": "Checking availability...",
-  "next": "Next",
-  "back": "Back",
   "booking_summary": "Booking Summary",
   "table": "Table",
   "capacity": "Capacity",
-  "date": "Date",
   "order_will_be_linked": "Order will be linked to this reservation",
   "your_table_reserved": "Your table has been reserved!",
-  "select_date": "Select Date",
-  "select_time": "Select Time",
   "date_and_time": "Date & Time",
   "restaurant_login_title": "Restaurant Sign In",
   "restaurant_login_subtitle": "Sign in with your staff phone number to manage your venue",
@@ -377,5 +328,36 @@
   "payment_failed": "Failed",
   "payment_refunded": "Refunded",
   "switch_restaurant": "Switch restaurant",
-  "recent_reviews": "Recent reviews"
+  "recent_reviews": "Recent reviews",
+  "more": "More",
+  "waitlist": "Waitlist",
+  "waitlist_empty": "No one is waiting right now",
+  "hub_empty": "Nothing here yet",
+  "customers": "Customers",
+  "staff": "Staff",
+  "branches": "Branches",
+  "reviews": "Reviews",
+  "contact_qr": "Contact & QR",
+  "add_category": "Add category",
+  "add_item": "Add item",
+  "edit_item": "Edit item",
+  "category_name_ar": "Category name (Arabic)",
+  "category_name_en": "Category name (English)",
+  "item_name_ar": "Item name (Arabic)",
+  "item_name_en": "Item name (English)",
+  "price_sar": "Price (SAR)",
+  "delete_category": "Delete category",
+  "delete_item": "Delete item",
+  "add_photo": "Add photo",
+  "remove_photo": "Remove photo",
+  "empty_menu_title": "No menu items yet",
+  "empty_menu_message": "Create a category, then add your first item.",
+  "category": "Category",
+  "price": "Price",
+  "active": "Active",
+  "inactive": "Inactive",
+  "page_of": "Page {i} of {n}",
+  "menu_filter_all": "All",
+  "menu_filter_active": "Active",
+  "menu_filter_inactive": "Inactive"
 }
