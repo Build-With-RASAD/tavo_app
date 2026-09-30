@@ -193,6 +193,8 @@ No deviations: test, service, controller, route, and mount all verbatim from
 the brief. XSS load-bearing gate holds — zero `<script>` tags in templates by
 construction, every interpolated string through `escapeHtml` (`&<>"'`).
 
+Adopter RED reconstruction (Wave B): route/service moved to /tmp → import-failure RED (0 ran); restored → 6/6 GREEN. XSS `<script>` payload asserts escaped (`&lt;script&gt;`) in both langs.
+
 ## Task 6 — customers CRM backend (read-only aggregation)
 
 RED: pre-existing state — `tests/unit/customers-panel.test.js` and all four
@@ -279,3 +281,17 @@ Reported diffs (controller applies — implementer touched neither file):
   `updateReservationAction(restaurantId:, id:, action:, reason:)`), keeping
   all 5 existing assertions (`loadCalls`, error, confirm-flips-row,
   failed-action-keeps-list, close-during-load).
+
+## Task 7 — branches panel backend (CRUD + soft delete) — orphan-adopted
+RED (orphan, confirmed): `npm test -- tests/unit/branches-panel.test.js` → suite failed to run (`Cannot find module '../../src/routes/branches-panel.route.js'`, 0 tests ran).
+GREEN: 11 passed, 11 total (brief Step 6 says "12" but the Step 1 block has 11 `it`s — brief count defect, 11 is true).
+Setup corrections (test-only, no assertion changed): `assignedBy` on assign helper; main restaurant `_id: RID`. Route addition: 3-line `stripBodyRestaurantId` middleware (venue middleware resolves body-first).
+FULL at adoption: 43 suites / 441 tests, all green.
+
+## Task 8 — contact backend (model + GET/PUT /contact) — orphan-adopted
+RED captured: `npm test -- tests/unit/contact-panel.test.js` → 6 failed, 2 passed (TEST-side bug: hardcoded `?restaurantId=RID` vs random restaurant ObjectId → 403s; implementation already brief-verbatim).
+GREEN after 1-line test-setup fix (`_id: RID` in Restaurant.create): 8 passed. No assertion added, removed, or weakened.
+
+## Task 10 — menu image upload backend — orphan-verified
+RED reconstructed: implementation files (route/service/controller) moved to /tmp → suite failed to run (`Cannot find module`, 0 total); restored → GREEN 7 passed, 7 total.
+FULL at adoption: 43 suites / 441 tests, all green.
