@@ -36,7 +36,7 @@ class OrdersScreen extends StatelessWidget {
     'confirmed',
     'preparing',
     'ready',
-    'delivered',
+    'served',
     'cancelled',
   ];
 

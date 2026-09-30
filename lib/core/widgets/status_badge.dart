@@ -32,7 +32,7 @@ class StatusBadge extends StatelessWidget {
     switch (status) {
       case 'confirmed':
       case 'completed':
-      case 'delivered':
+      case 'served':
       case 'paid':
         return const Color(0xFF22A83A);
       case 'seated':

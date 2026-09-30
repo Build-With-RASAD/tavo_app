@@ -407,3 +407,19 @@ Analyze: 24 issues total = baseline, 0 in task-20 files.
 Controller wiring (NOT applied — service_locator untouched):
   import 'package:tavo/feature/panel_contact/di/register_contact_module.dart';
   registerContactModule();
+
+## Task 23 — Panel order creation + i18n overwrite guard (backend)
+RED: `npm test -- tests/unit/order-create-panel.test.js` → suite failed to run (`Cannot find module '../../src/routes/order-create-panel.route.js'`); `i18n-add-script.test.js` → 7 passed / 1 failed (new guard test: err null, script silently overwrote).
+GREEN: `npm test -- tests/unit/order-create-panel.test.js tests/unit/i18n-add-script.test.js` → 2 suites, 15 passed (7 order + 8 i18n).
+Step-0 deviations from brief snippet (assertions intact):
+- `tableId` ABSENT on Order schema → added `tableId: { type: ObjectId, ref: "PhysicalTable", default: null }` (conditional modify allowed).
+- MenuItem price field is `price` ✓ (brief assumption holds).
+- `orderNumber` NOT hook-generated → panel service imports `generateOrderNumber` from `order.services.js` (same generator as customer path).
+- Line-items schema uses `menuItems`/`quantity` (not `items`/`qty`) → service writes `menuItems: [{menuItemId,name,quantity,unitPrice,specifications:[],lineTotal,image}]`.
+- Pricing math verified against customer `createOrderService`: TAX_RATE 0.15, tax rounded, `totalPrice = subtotal + tax` (unrounded) → implemented identically; brief test numbers (135/20.25/155.25) unchanged.
+- Order schema has NO `notes` field → validator accepts `notes` (≤500) but service does not persist it (strict mode would drop it).
+- `PhysicalTable` requires `tableTypeId` → test creates a `Table` type fixture and passes `tableTypeId` (brief test omits it and would fail validation).
+i18n guard: conflicting value without `--force` → `key-conflict: <keys>`, exit 1, file untouched, lock released explicitly (process.exit skips finally); `--force` overwrites + prints `overwrote: <keys>`. All 6 pre-existing guard behaviors green.
+Controller wiring (NOT applied — `restaurant-owner.routes.js` untouched):
+  import orderCreatePanelRoutes from "./order-create-panel.route.js";
+  router.use(orderCreatePanelRoutes);

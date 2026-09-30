@@ -452,5 +452,7 @@
   "share_link": "Share",
   "link_copied": "Link copied",
   "qr_title": "Menu QR code",
-  "contact_saved": "Contact saved"
+  "contact_saved": "Contact saved",
+  "served": "Served",
+  "ord_served": "Served"
 }

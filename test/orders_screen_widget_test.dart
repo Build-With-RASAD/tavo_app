@@ -146,6 +146,35 @@ void main() {
     expect(find.text('Preparing'), findsOneWidget);
   });
 
+  testWidgets('served filter chip exists and filters through the repo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(appShell(const OrdersScreen(restaurantId: 'r1')));
+    await tester.pumpAndSettle();
+
+    final chip = find.byKey(const ValueKey('orders_filter_served'));
+    expect(chip, findsOneWidget);
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+
+    expect(repo.lastFilter, 'served');
+    expect(find.text('Served'), findsWidgets);
+  });
+
+  testWidgets('no delivered string renders anywhere in the orders flow', (
+    tester,
+  ) async {
+    repo.orders = [_order('1', 'pending'), _order('2', 'served')];
+    await tester.pumpWidget(appShell(const OrdersScreen(restaurantId: 'r1')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('orders_filter_delivered')), findsNothing);
+    expect(find.text('Delivered'), findsNothing);
+    expect(find.text('delivered'), findsNothing);
+  });
+
   testWidgets('tapping a status chip filters through the repo', (tester) async {
     await tester.pumpWidget(appShell(const OrdersScreen(restaurantId: 'r1')));
     await tester.pumpAndSettle();

@@ -108,8 +108,8 @@ void main() {
     expect(nextOrderActionsFor('pending'), ['confirmed', 'cancelled']);
     expect(nextOrderActionsFor('confirmed'), ['preparing', 'cancelled']);
     expect(nextOrderActionsFor('preparing'), ['ready', 'cancelled']);
-    expect(nextOrderActionsFor('ready'), ['delivered', 'cancelled']);
-    expect(nextOrderActionsFor('delivered'), isEmpty);
+    expect(nextOrderActionsFor('ready'), ['served', 'cancelled']);
+    expect(nextOrderActionsFor('served'), isEmpty);
     expect(nextOrderActionsFor('cancelled'), isEmpty);
   });
 

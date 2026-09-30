@@ -87,12 +87,12 @@ class OrderLine {
 String orderStatusLabelKey(String orderStatus) => orderStatus;
 
 /// Valid next statuses for an order, mirroring the backend `validTransitions`
-/// map. Terminal statuses (`delivered`, `cancelled`) have no next actions.
+/// map. Terminal statuses (`served`, `cancelled`) have no next actions.
 const Map<String, List<String>> _validTransitions = {
   'pending': ['confirmed', 'cancelled'],
   'confirmed': ['preparing', 'cancelled'],
   'preparing': ['ready', 'cancelled'],
-  'ready': ['delivered', 'cancelled'],
+  'ready': ['served', 'cancelled'],
 };
 
 List<String> nextOrderActionsFor(String status) =>
