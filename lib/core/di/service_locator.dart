@@ -15,6 +15,8 @@ import 'package:tavo/feature/panel_waitlist/di/register_waitlist_module.dart';
 import 'package:tavo/feature/panel_customers/di/register_customers_module.dart';
 import 'package:tavo/feature/panel_branches/di/register_branches_module.dart';
 import 'package:tavo/feature/panel_contact/di/register_contact_module.dart';
+import 'package:tavo/feature/panel_dashboard/di/register_dashboard_module.dart';
+import 'package:tavo/feature/panel_invoice/di/register_invoice_module.dart';
 import 'package:tavo/feature/Profile/ui/logic/cubit/profile_cubit.dart';
 import 'package:tavo/feature/Profile/data/repo/profile_repo.dart';
 import 'package:tavo/feature/auth/ui/data/repo/auth_repo.dart';
@@ -143,4 +145,6 @@ Future<void> initServiceLocator() async {
   registerCustomersModule();
   registerBranchesModule();
   registerContactModule();
+  registerDashboardModule(); // Wave E2: dashboard extras (floor/waitlist/orders)
+  registerInvoiceModule(); // Wave E2: invoice screen
 }

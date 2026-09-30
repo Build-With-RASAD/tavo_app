@@ -36,7 +36,7 @@ class OrderTally {
     this.confirmed = 0,
     this.preparing = 0,
     this.ready = 0,
-    this.delivered = 0,
+    this.served = 0,
     this.cancelled = 0,
     this.newCount = 0,
     this.avgOrderValue = 0,
@@ -47,7 +47,7 @@ class OrderTally {
   final int confirmed;
   final int preparing;
   final int ready;
-  final int delivered;
+  final int served;
   final int cancelled;
 
   /// Count behind the backend `newOrders` key — a list or an int is tolerated.
@@ -62,7 +62,7 @@ class OrderTally {
       confirmed: _toInt(json['confirmed']),
       preparing: _toInt(json['preparing']),
       ready: _toInt(json['ready']),
-      delivered: _toInt(json['delivered']),
+      served: _toInt(json['served']),
       cancelled: _toInt(json['cancelled']),
       newCount: json['newOrders'] is List
           ? (json['newOrders'] as List).length

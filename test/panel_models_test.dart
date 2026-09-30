@@ -7,7 +7,7 @@ import 'package:tavo/feature/restaurant_panel/data/model/paged_result.dart';
 const _dashboard = {
   'orders': {
     'total': 12, 'pending': 3, 'confirmed': 2, 'preparing': 1, 'ready': 1,
-    'delivered': 4, 'cancelled': 1, 'newOrders': [{}], 'avgOrderValue': 55.2,
+    'served': 4, 'cancelled': 1, 'newOrders': [{}], 'avgOrderValue': 55.2,
   },
   'reservations': {
     'total': 8, 'pending': 2, 'confirmed': 3, 'seated': 1,
@@ -45,6 +45,7 @@ void main() {
     final s = DashboardStats.fromJson(_dashboard);
 
     expect(s.orders.total, 12);
+    expect(s.orders.served, 4); // backend emits `served` (was `delivered`)
     expect(s.orders.newCount, 1);          // newOrders list tolerated as count source
     expect(s.orders.avgOrderValue, 55.2);
     expect(s.reservations.seated, 1);

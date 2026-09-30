@@ -34,6 +34,7 @@ import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/orders_screen.dart';
 
 import 'helpers/app_shell.dart';
+import 'helpers/dashboard_extras_helper.dart';
 
 /// Staff auth repo with a recorded, network-free logout.
 class FakeStaffRepo extends RestaurantAuthRepo {
@@ -211,6 +212,8 @@ void main() {
         (restaurantId, _) =>
             RestaurantHomeCubit(panelRepo, restaurantId: restaurantId),
       );
+    // Wave E2: the shell's dashboard tab builds the extras section too.
+    registerDashboardExtrasForTests();
   });
 
   tearDown(getIt.reset);

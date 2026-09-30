@@ -19,6 +19,7 @@ class TablesPanelLoaded extends TablesPanelState {
     required this.tables,
     this.selectedTypeId,
     this.saving = false,
+    this.creating = false,
     this.actionId,
     this.actionError,
   });
@@ -27,6 +28,7 @@ class TablesPanelLoaded extends TablesPanelState {
   final String? selectedTypeId;
   final List<PanelPhysicalTable> tables;
   final bool saving; // save-layout spinner target
+  final bool creating; // add-table form spinner target (T28)
   final String? actionId; // per-table spinner target
   final String? actionError; // transient, keeps the editor on screen
 
@@ -35,6 +37,7 @@ class TablesPanelLoaded extends TablesPanelState {
     String? selectedTypeId,
     List<PanelPhysicalTable>? tables,
     bool? saving,
+    bool? creating,
     String? actionId,
     String? actionError,
     bool clearAction = false,
@@ -45,6 +48,7 @@ class TablesPanelLoaded extends TablesPanelState {
         selectedTypeId: selectedTypeId ?? this.selectedTypeId,
         tables: tables ?? this.tables,
         saving: saving ?? this.saving,
+        creating: creating ?? this.creating,
         actionId: clearAction ? null : actionId ?? this.actionId,
         actionError: clearError ? null : actionError ?? this.actionError,
       );

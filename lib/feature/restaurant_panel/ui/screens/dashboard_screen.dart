@@ -8,6 +8,11 @@ import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:tavo/feature/panel_dashboard/ui/logic/dashboard_extras_cubit.dart';
+import 'package:tavo/feature/panel_dashboard/ui/widgets/floor_strip.dart';
+import 'package:tavo/feature/panel_dashboard/ui/widgets/orders_summary.dart';
+import 'package:tavo/feature/panel_dashboard/ui/widgets/quick_actions.dart';
+import 'package:tavo/feature/panel_dashboard/ui/widgets/waitlist_preview.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/dashboard_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/dashboard_state.dart';
 
@@ -24,10 +29,18 @@ class DashboardScreen extends StatelessWidget {
     super.key,
     required this.restaurantId,
     required this.venue,
+    this.onNewOrder,
+    this.onOpenOrders,
+    this.onOpenWaitlist,
   });
 
   final String restaurantId;
   final StaffRestaurant venue;
+
+  /// Dashboard shortcuts — tab switches / create-flow entry are shell-owned.
+  final VoidCallback? onNewOrder;
+  final void Function(String status)? onOpenOrders;
+  final VoidCallback? onOpenWaitlist;
 
   @override
   Widget build(BuildContext context) {
@@ -81,37 +94,95 @@ class DashboardScreen extends StatelessWidget {
                 crossAxisCount: 2,
                 mainAxisSpacing: 12.w,
                 crossAxisSpacing: 12.w,
-                mainAxisExtent: 130.h,
+                mainAxisExtent: 150.h,
               ),
               children: [
                 _StatCard(
                   label: 'total_orders'.tr(),
                   value: '${stats.orders.total}',
+                  icon: Icons.shopping_bag_outlined,
+                  tint: ColorsManager.primary500,
                 ),
                 _StatCard(
                   label: 'new_orders'.tr(),
                   value: '${stats.orders.newCount}',
+                  icon: Icons.bolt_outlined,
+                  tint: ColorsManager.teal,
                 ),
                 _StatCard(
                   label: 'pending'.tr(),
                   value: '${stats.orders.pending}',
+                  icon: Icons.hourglass_top_outlined,
+                  tint: ColorsManager.secondary500,
                 ),
                 _StatCard(
                   label: 'total_reservations'.tr(),
                   value: '${stats.reservations.total}',
+                  icon: Icons.event_available_outlined,
+                  tint: ColorsManager.purple,
                 ),
                 _StatCard(
                   label: 'revenue_this_month'.tr(),
                   value:
                       '${_formatAmount(stats.revenue.thisMonth)} ${'currency'.tr()}',
+                  icon: Icons.payments_outlined,
+                  tint: ColorsManager.primary500,
                 ),
                 _StatCard(
                   label: 'avg_rating'.tr(),
                   value: '${stats.reviews.averageRating}',
+                  icon: Icons.star_outline,
+                  tint: ColorsManager.secondary500,
                 ),
               ],
             ),
             SizedBox(height: 20.h),
+            // Wave E2 extras (Task 26): quick actions, live floor strip,
+            // waitlist preview and order chips — each failure renders its own
+            // inline error + retry without taking down the headline stats.
+            BlocProvider<DashboardExtrasCubit>(
+              create: (_) =>
+                  getIt<DashboardExtrasCubit>(param1: restaurantId)..load(),
+              child: BlocBuilder<DashboardExtrasCubit, DashboardExtrasState>(
+                builder: (context, state) {
+                  if (state is DashboardExtrasError) {
+                    return ErrorStateView(
+                      message: state.message,
+                      onRetry: () =>
+                          context.read<DashboardExtrasCubit>().load(),
+                    );
+                  }
+                  if (state is DashboardExtrasLoaded) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        QuickActions(onNewOrder: onNewOrder),
+                        SizedBox(height: 16.h),
+                        FloorStrip(
+                          tables: state.tables,
+                          occupiedIds: state.occupiedIds,
+                        ),
+                        SizedBox(height: 16.h),
+                        WaitlistPreview(
+                          entries: state.waitlist,
+                          total: state.waitlistTotal,
+                          onOpenWaitlist: onOpenWaitlist,
+                        ),
+                        SizedBox(height: 16.h),
+                        OrdersSummary(
+                          ordersByStatus: state.ordersByStatus,
+                          onOpenOrders: onOpenOrders,
+                        ),
+                        SizedBox(height: 20.h),
+                      ],
+                    );
+                  }
+                  // Extras still loading: the standard skeleton at its own
+                  // natural height (it is inside the scroll view).
+                  return const ListSkeleton();
+                },
+              ),
+            ),
             Text(
               'recent_reviews'.tr(),
               style: TextStyles.font16Black500Weight(context),
@@ -140,13 +211,13 @@ class DashboardScreen extends StatelessWidget {
           width: 44.r,
           height: 44.r,
           decoration: BoxDecoration(
-            color: ColorsManager.grey100,
+            color: ColorsManager.primary100,
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Icon(
             Icons.restaurant,
             size: 22.r,
-            color: ColorsManager.darkGray300,
+            color: ColorsManager.primary500,
           ),
         ),
         SizedBox(width: 12.w),
@@ -173,12 +244,20 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-/// One headline number: grey label above a bold value on a white card.
+/// One headline number: tinted icon chip, grey label and a bold value on a
+/// white card.
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.tint,
+  });
 
   final String label;
   final String value;
+  final IconData icon;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
@@ -192,13 +271,23 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 30.r,
+            height: 30.r,
+            decoration: BoxDecoration(
+              color: tint.withAlpha(30),
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: Icon(icon, size: 16.r, color: tint),
+          ),
+          SizedBox(height: 6.h),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyles.font12DarkGray400Weight(context),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 4.h),
           Text(
             value,
             maxLines: 1,

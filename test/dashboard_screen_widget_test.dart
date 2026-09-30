@@ -4,6 +4,10 @@ import 'package:get_it/get_it.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:tavo/feature/panel_dashboard/data/repo/dashboard_panel_repo.dart';
+import 'package:tavo/feature/panel_dashboard/di/register_dashboard_module.dart';
+import 'package:tavo/feature/panel_tables/data/model/table_models.dart';
+import 'package:tavo/feature/panel_waitlist/data/model/waitlist_models.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/dashboard_stats.dart';
 import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
@@ -41,6 +45,25 @@ const _venue = StaffRestaurant(
   restaurantId: 'r1', nameEn: 'Burger Lab', nameAr: 'برغر لاب', role: 'owner',
 );
 
+/// Extras repo with empty data: these tests only care about the headline
+/// stats — the extras section renders loaded-but-empty with no network.
+class _EmptyExtrasRepo extends DashboardPanelRepo {
+  _EmptyExtrasRepo() : super(api: ApiService());
+
+  @override
+  Future<List<PanelPhysicalTable>> getFloorTables(String restaurantId) async =>
+      [];
+
+  @override
+  Future<({List<PanelWaitlistEntry> entries, int total})> getWaitlistPreview(
+          String restaurantId) async =>
+      (entries: <PanelWaitlistEntry>[], total: 0);
+
+  @override
+  Future<List<DashboardOpenOrder>> getOpenOrders(String restaurantId) async =>
+      [];
+}
+
 void main() {
   setUpAll(initTestEnv);
   late FakePanelRepo repo;
@@ -50,6 +73,11 @@ void main() {
     repo = FakePanelRepo();
     getIt.registerFactory<RestaurantPanelRepo>(() => repo);
     getIt.registerFactory<DashboardCubit>(() => DashboardCubit(repo));
+    // Wave E2 wiring: the screen now builds the extras section too — seed an
+    // empty extras repo BEFORE registerDashboardModule so its guarded repo
+    // registration is skipped and only the cubit factory is claimed.
+    getIt.registerLazySingleton<DashboardPanelRepo>(() => _EmptyExtrasRepo());
+    registerDashboardModule();
   });
   tearDown(getIt.reset);
 
@@ -89,7 +117,9 @@ void main() {
     final pending = FakePanelRepo();
     getIt
       ..registerFactory<RestaurantPanelRepo>(() => pending)
-      ..registerFactory<DashboardCubit>(() => DashboardCubit(pending));
+      ..registerFactory<DashboardCubit>(() => DashboardCubit(pending))
+      ..registerLazySingleton<DashboardPanelRepo>(() => _EmptyExtrasRepo());
+    registerDashboardModule();
     await tester.pumpWidget(
         appShell(const DashboardScreen(restaurantId: 'r1', venue: _venue)));
     await tester.pump(); // first frame: loading

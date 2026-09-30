@@ -13,6 +13,7 @@ import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_state.dart';
 import 'package:tavo/feature/restaurant_panel/ui/widgets/order_card.dart';
+import 'package:tavo/feature/panel_invoice/ui/screens/panel_invoice_screen.dart';
 
 /// Staff panel orders: a status-filter chip row over the live list, with
 /// per-row status actions, a details sheet and an action sheet guarding the
@@ -178,7 +179,8 @@ class OrdersScreen extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => OrderDetailsSheet(order: order),
+      builder: (_) =>
+          OrderDetailsSheet(order: order, restaurantId: restaurantId),
     );
   }
 }
@@ -294,9 +296,13 @@ class _PaginatedOrdersListState extends State<_PaginatedOrdersList> {
 /// (name, `qty × unitPrice`, line total), subtotal / tax / total rows, the
 /// payment pill and a close button.
 class OrderDetailsSheet extends StatelessWidget {
-  const OrderDetailsSheet({super.key, required this.order});
+  const OrderDetailsSheet({super.key, required this.order, this.restaurantId});
 
   final PanelOrder order;
+
+  /// Venue id for the invoice entry. Optional so existing call sites keep
+  /// compiling; the Invoice button only shows when it is non-empty.
+  final String? restaurantId;
 
   @override
   Widget build(BuildContext context) {
@@ -357,6 +363,31 @@ class OrderDetailsSheet extends StatelessWidget {
               StatusBadge(status: order.paymentStatus, label: paymentKey.tr()),
             ],
             SizedBox(height: 20.h),
+            // Task 27 invoice entry: per-order button pushing the ZATCA
+            // invoice screen (print + share). Hidden when the venue id is
+            // unknown so the sheet never navigates to a venue-less invoice.
+            if ((restaurantId ?? '').isNotEmpty) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: ValueKey('order_invoice_${order.id}'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PanelInvoiceScreen(
+                          orderId: order.id,
+                          restaurantId: restaurantId!,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: Text('inv_title'.tr()),
+                ),
+              ),
+              SizedBox(height: 8.h),
+            ],
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

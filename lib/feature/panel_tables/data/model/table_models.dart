@@ -27,6 +27,8 @@ class PanelPhysicalTable {
     required this.code,
     required this.seats,
     required this.status,
+    this.zone, // T28: free-form zone label (null = unassigned)
+    this.occupied = false, // T28: computed server-side (E2 open-order rule)
     this.x,
     this.y,
   });
@@ -36,10 +38,34 @@ class PanelPhysicalTable {
   final String code;
   final int seats;
   final String status;
+  final String? zone;
+  final bool occupied;
   final double? x; // null → tray (Task 4: unpositioned)
   final double? y;
 
   bool get positioned => x != null && y != null;
+
+  PanelPhysicalTable copyWith({
+    String? code,
+    int? seats,
+    String? status,
+    String? zone,
+    bool clearZone = false,
+    bool? occupied,
+    double? x,
+    double? y,
+  }) =>
+      PanelPhysicalTable(
+        id: id,
+        tableTypeId: tableTypeId,
+        code: code ?? this.code,
+        seats: seats ?? this.seats,
+        status: status ?? this.status,
+        zone: clearZone ? null : (zone ?? this.zone),
+        occupied: occupied ?? this.occupied,
+        x: x ?? this.x,
+        y: y ?? this.y,
+      );
 
   factory PanelPhysicalTable.fromJson(Map<String, dynamic> json) {
     final pos = json['position'];
@@ -50,6 +76,8 @@ class PanelPhysicalTable {
       code: json['code'] as String? ?? '',
       seats: (json['seats'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'available',
+      zone: json['zone'] as String?,
+      occupied: json['occupied'] as bool? ?? false,
       x: pos is Map ? (pos['x'] as num?)?.toDouble() : null,
       y: pos is Map ? (pos['y'] as num?)?.toDouble() : null,
     );

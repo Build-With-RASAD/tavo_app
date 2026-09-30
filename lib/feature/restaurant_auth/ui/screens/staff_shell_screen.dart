@@ -120,7 +120,16 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
               child: IndexedStack(
                 index: _tabIndex,
                 children: [
-                  DashboardScreen(restaurantId: _activeId, venue: _venue),
+                  DashboardScreen(
+                    restaurantId: _activeId,
+                    venue: _venue,
+                    // Wave E2: dashboard shortcuts switch tabs. The order
+                    // create-flow UI lands as its own task — until then the
+                    // shortcut opens the orders tab (T23 endpoint behind it).
+                    onNewOrder: () => setState(() => _tabIndex = 1),
+                    onOpenOrders: (_) => setState(() => _tabIndex = 1),
+                    onOpenWaitlist: () => setState(() => _tabIndex = 3),
+                  ),
                   OrdersScreen(restaurantId: _activeId),
                   ReservationsTab(restaurantId: _activeId),
                   WaitlistTab(restaurantId: _activeId, venue: _venue),

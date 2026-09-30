@@ -25,6 +25,7 @@ import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 
 import 'helpers/app_shell.dart';
+import 'helpers/dashboard_extras_helper.dart';
 
 /// End-to-end widget coverage for the staff flow:
 /// login → OTP → shell → confirm action.
@@ -201,6 +202,9 @@ void main() {
       (restaurantId, _) =>
           OrdersCubit(panelRepo, restaurantId: restaurantId),
     );
+    // Wave E2: the OTP flow lands on the shell, whose dashboard tab
+    // builds the extras section too.
+    registerDashboardExtrasForTests();
   });
 
   tearDown(getIt.reset);

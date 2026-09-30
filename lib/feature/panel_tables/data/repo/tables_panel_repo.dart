@@ -91,4 +91,80 @@ class TablesPanelRepo {
       throw parseDioError(e);
     }
   }
+
+  /// POST {panelBase}/tables/:tableTypeId/physical → the created table (201).
+  Future<PanelPhysicalTable> createPhysicalTable({
+    required String restaurantId,
+    required String tableTypeId,
+    required String code,
+    required int seats,
+    String? zone,
+  }) async {
+    try {
+      final res = await _api.post(
+        '${ApiConstants.panelBase}/tables/$tableTypeId/physical?restaurantId=$restaurantId',
+        data: {
+          'code': code,
+          'seats': seats,
+          if (zone != null) 'zone': zone,
+        },
+      );
+      return PanelPhysicalTable.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// PUT {panelBase}/physical-tables/:id — sends only the provided fields;
+  /// [clearZone] sends an explicit `zone: null` (backend treats it as clear).
+  /// Server-side 409s (duplicate code) surface through [parseDioError].
+  Future<PanelPhysicalTable> updatePhysicalTable({
+    required String restaurantId,
+    required String id,
+    String? code,
+    int? seats,
+    String? zone,
+    bool clearZone = false,
+  }) async {
+    try {
+      final res = await _api.put(
+        '${ApiConstants.panelBase}/physical-tables/$id?restaurantId=$restaurantId',
+        data: {
+          if (code != null) 'code': code,
+          if (seats != null) 'seats': seats,
+          if (clearZone)
+            'zone': null
+          else if (zone != null)
+            'zone': zone,
+        },
+      );
+      return PanelPhysicalTable.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// DELETE {panelBase}/physical-tables/:id → whether the backend deleted it.
+  /// 409 (open order / active reservation) surfaces as a parsed error.
+  Future<bool> deletePhysicalTable({
+    required String restaurantId,
+    required String id,
+  }) async {
+    try {
+      final res = await _api.delete(
+        '${ApiConstants.panelBase}/physical-tables/$id?restaurantId=$restaurantId',
+      );
+      final payload = panelPayload(res.data);
+      if (payload is Map<String, dynamic>) {
+        return payload['deleted'] == true;
+      }
+      return false;
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
 }

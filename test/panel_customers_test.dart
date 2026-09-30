@@ -39,7 +39,7 @@ PanelCustomerDetail _detail(PanelCustomer c) => PanelCustomerDetail(
         {
           'orderNumber': 'ORD-1',
           'totalPrice': 120,
-          'orderStatus': 'delivered',
+          'orderStatus': 'served',
           'createdAt': '2026-09-29T18:00:00.000Z'
         }
       ],
