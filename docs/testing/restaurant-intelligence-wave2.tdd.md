@@ -1944,3 +1944,32 @@ _(pending)_
 ## Task 34 — verification, live deploy, QR proof
 
 _(pending)_
+
+## Contract gate — real payload → Dart models
+
+`test/analytics_contract_test.dart` + `test/fixtures/analytics_sample.json`
+(a verbatim capture of the deployed `GET /analytics` response, 2026-10-22).
+
+Why it exists: every `fromJson` tolerates a missing key by falling back to
+`0`/`null`, which is right for a partial payload and catastrophic for a
+rename — the dashboard would render a plausible lie. So each assertion below
+names a real value from the capture.
+
+Covered: `range`, all 11 `live` fields, `kpi.revenue` (gross/net/tax split,
+`net + tax == gross`), `kpi.orders` (incl. `avgPrepMinutes`), the
+`no_show` snake_case **key** inside `kpi.reservations.byStatus`, `customers`,
+`avgRating`, `avgTicketMinutes`, `trend.daily`, `trend.heatmap`,
+`comparison.*` (incl. `previous == 0 → deltaPct == null`), `topItems`,
+`alerts` (incl. every `action` naming a tab the shell can open), and the
+`/analytics/live` shape (bare `LiveSnapshot` at `data`, not nested).
+
+### GREEN
+
+```
+00:00 +12: (tearDownAll)
+00:00 +12: All tests passed!
+```
+
+Verified against the source too: `analytics-panel.services.js` returns the
+live object at `data` top level, which is what
+`LiveSnapshot.fromJson(panelAsPayload(...))` consumes.

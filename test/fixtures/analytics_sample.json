@@ -1,0 +1,145 @@
+{
+  "success": true,
+  "data": {
+    "range": {
+      "from": "2026-09-22T21:00:00.000Z",
+      "to": "2026-10-22T20:59:59.999Z",
+      "days": 30
+    },
+    "live": {
+      "revenueToday": 247.25,
+      "ordersToday": 4,
+      "openOrders": 1,
+      "ordersByStatus": {
+        "cancelled": 1,
+        "served": 2,
+        "pending": 1
+      },
+      "occupiedTables": 1,
+      "totalTables": 2,
+      "occupancyPct": 50,
+      "waitlistCount": 1,
+      "reservationsToday": 3,
+      "seatedNow": 1,
+      "revenueLastHour": 0
+    },
+    "kpi": {
+      "revenue": {
+        "gross": 247.25,
+        "net": 215,
+        "tax": 32.25,
+        "orders": 2,
+        "avgOrderValue": 123.63
+      },
+      "orders": {
+        "total": 4,
+        "byStatus": {
+          "pending": 1,
+          "served": 2,
+          "cancelled": 1
+        },
+        "avgPrepMinutes": 21
+      },
+      "reservations": {
+        "total": 3,
+        "byStatus": {
+          "seated": 1,
+          "confirmed": 1,
+          "no_show": 1
+        },
+        "noShowRate": 33.33,
+        "capacityUtilizationPct": 33.33
+      },
+      "customers": {
+        "total": 1,
+        "returning": 1,
+        "returningPct": 100
+      },
+      "avgRating": 4.5,
+      "avgTicketMinutes": 33
+    },
+    "trend": {
+      "daily": [
+        {
+          "date": "2026-10-22",
+          "revenueGross": 247.25,
+          "revenueNet": 215,
+          "orders": 2,
+          "avgOrderValue": 123.63
+        }
+      ],
+      "heatmap": [
+        {
+          "weekday": 4,
+          "hour": 5,
+          "orders": 1,
+          "revenue": 109.25
+        },
+        {
+          "weekday": 4,
+          "hour": 7,
+          "orders": 1,
+          "revenue": 138
+        }
+      ]
+    },
+    "comparison": {
+      "revenue": {
+        "current": 247.25,
+        "previous": 195.5,
+        "deltaPct": 26.47
+      },
+      "orders": {
+        "current": 2,
+        "previous": 2,
+        "deltaPct": 0
+      },
+      "avgOrderValue": {
+        "current": 123.63,
+        "previous": 97.75,
+        "deltaPct": 26.48
+      },
+      "reservations": {
+        "current": 3,
+        "previous": 0,
+        "deltaPct": null
+      }
+    },
+    "topItems": [
+      {
+        "name": "Classic Burger",
+        "quantity": 3,
+        "revenue": 135,
+        "sharePct": 62.79
+      },
+      {
+        "name": "Caesar Salad",
+        "quantity": 1,
+        "revenue": 50,
+        "sharePct": 23.26
+      },
+      {
+        "name": "French Fries",
+        "quantity": 1,
+        "revenue": 30,
+        "sharePct": 13.95
+      }
+    ],
+    "alerts": [
+      {
+        "type": "high_no_show",
+        "severity": "warning",
+        "message": "33.33% of reservations were no-shows",
+        "count": 1,
+        "action": "reservations"
+      },
+      {
+        "type": "waitlist_backlog",
+        "severity": "info",
+        "message": "1 guests are waiting for a table",
+        "count": 1,
+        "action": "waitlist"
+      }
+    ]
+  }
+}
