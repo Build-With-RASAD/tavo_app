@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links: a scanned QR pointing at
+	     https://tavo.abwabdigital.com/menu/<slug> opens the Tavo app when it
+	     is installed, and the public menu page in Safari when it is not.
+
+	     This only works when the domain serves a valid
+	     /.well-known/apple-app-site-association file with the exact app id
+	     below (Team ID + bundle id) and Content-Type application/json.
+	     See src/routes/well-known.route.js on the backend. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:tavo.abwabdigital.com</string>
+	</array>
+</dict>
+</plist>

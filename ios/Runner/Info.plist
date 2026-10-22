@@ -30,6 +30,23 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- Custom-scheme fallback for Universal Links: when a scanned QR
+		     cannot be verified as a Universal Link (or the user prefers the
+		     app explicitly), tavo://restaurant/<id> still opens the Tavo app.
+		     See lib/core/navigation/deep_link_service.dart for the parser. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.rasad.tavo.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tavo</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>LSApplicationQueriesSchemes</key>

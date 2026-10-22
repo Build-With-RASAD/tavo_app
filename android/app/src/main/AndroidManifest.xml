@@ -30,6 +30,31 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- App Links: a scanned QR pointing at
+                 https://tavo.abwabdigital.com/menu/<slug> opens the Tavo app
+                 when it is installed, and the public menu page in the browser
+                 when it is not.
+
+                 autoVerify only succeeds when the domain serves a valid
+                 /.well-known/assetlinks.json listing this package name and
+                 the release certificate SHA-256 (see
+                 src/routes/well-known.route.js on the backend). Without it
+                 Android silently falls back to the browser. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="tavo.abwabdigital.com" android:pathPrefix="/menu"/>
+                <data android:scheme="https" android:host="tavo.abwabdigital.com" android:pathPrefix="/r"/>
+            </intent-filter>
+            <!-- Custom-scheme fallback for Android without verified App Links.
+                 See lib/core/navigation/deep_link_service.dart for the parser. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="tavo" android:host="restaurant"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -46,6 +71,18 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Package visibility for the app_links plugin (Android 11+): without
+             this the plugin cannot see which app handles the link. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="tavo"/>
         </intent>
     </queries>
 </manifest>
