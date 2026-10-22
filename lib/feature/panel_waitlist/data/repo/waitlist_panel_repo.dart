@@ -7,7 +7,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/waitlist_models.dart';
 
 class WaitlistPanelRepo {
-  WaitlistPanelRepo({required ApiService api}) : _api = api;
+  WaitlistPanelRepo({required this._api});
   final ApiService _api;
 
   Future<({List<PanelWaitlistEntry> entries, int page, int pages, int total})>

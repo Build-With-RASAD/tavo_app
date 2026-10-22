@@ -8,9 +8,8 @@ class RestaurantsCubit extends Cubit<RestaurantsState> {
   final RestaurantsRepo _restaurantsRepo;
   final String _locale;
 
-  RestaurantsCubit(this._restaurantsRepo, {String locale = 'ar'})
-      : _locale = locale,
-        super(const RestaurantsState());
+  RestaurantsCubit(this._restaurantsRepo, {this._locale = 'ar'})
+      : super(const RestaurantsState());
 
   Future<void> loadRestaurants() async {
     emit(state.copyWith(loading: true, clearError: true));

@@ -7,7 +7,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/contact_models.dart';
 
 class ContactPanelRepo {
-  ContactPanelRepo({required ApiService api}) : _api = api;
+  ContactPanelRepo({required this._api});
   final ApiService _api;
 
   String _q(String restaurantId) => '?restaurantId=$restaurantId';

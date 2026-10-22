@@ -16,7 +16,7 @@ import '../model/menu_models.dart';
 /// falls back to the FIRST venue). Error style mirrors
 /// [RestaurantPanelRepo] (plain-string errors via [parseDioError]).
 class MenuPanelRepo {
-  MenuPanelRepo({required ApiService api}) : _api = api;
+  MenuPanelRepo({required this._api});
   final ApiService _api;
 
   /// Every panel call carries ?restaurantId= (global constraint 6).

@@ -7,7 +7,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/staff_models.dart';
 
 class StaffPanelRepo {
-  StaffPanelRepo({required ApiService api}) : _api = api;
+  StaffPanelRepo({required this._api});
   final ApiService _api;
 
   String _q(String restaurantId) => '?restaurantId=$restaurantId';

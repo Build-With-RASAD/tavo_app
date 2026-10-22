@@ -40,7 +40,7 @@ class DashboardOpenOrder {
 /// waitlist preview (Task 5 endpoint), and open orders (Task 12 shape).
 /// Errors surface as plain strings like every other panel repo.
 class DashboardPanelRepo {
-  DashboardPanelRepo({required ApiService api}) : _api = api;
+  DashboardPanelRepo({required this._api});
   final ApiService _api;
 
   /// Every physical table across all types: `GET /tables` for the type ids,

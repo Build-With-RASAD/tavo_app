@@ -17,9 +17,8 @@ class PanelMenuCubit extends Cubit<PanelMenuState> {
   PanelMenuCubit(
     this._repo, {
     required this.restaurantId,
-    required bool Function() canManage,
-  })  : _canManage = canManage,
-        super(const PanelMenuInitial());
+    required this._canManage,
+  }) : super(const PanelMenuInitial());
 
   final MenuPanelRepo _repo;
   final String restaurantId;

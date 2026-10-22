@@ -8,7 +8,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/table_models.dart';
 
 class TablesPanelRepo {
-  TablesPanelRepo({required ApiService api}) : _api = api;
+  TablesPanelRepo({required this._api});
   final ApiService _api;
 
   /// The tables services return bare arrays (not pages): accept a List

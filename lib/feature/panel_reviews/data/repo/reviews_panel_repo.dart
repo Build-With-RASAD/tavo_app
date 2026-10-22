@@ -8,7 +8,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/review_models.dart';
 
 class ReviewsPanelRepo {
-  ReviewsPanelRepo({required ApiService api}) : _api = api;
+  ReviewsPanelRepo({required this._api});
   final ApiService _api;
 
   Future<({List<PanelReview> reviews, int page, int pages, int total})>

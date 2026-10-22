@@ -9,9 +9,8 @@ class CreateBookingCubit extends Cubit<CreateBookingState> {
   final BookingsRepo _repo;
   final ProfileRepo? _profileRepo;
 
-  CreateBookingCubit(this._repo, {ProfileRepo? profileRepo})
-    : _profileRepo = profileRepo,
-      super(const CreateBookingState());
+  CreateBookingCubit(this._repo, {this._profileRepo})
+      : super(const CreateBookingState());
 
   void init({
     required String restaurantId,

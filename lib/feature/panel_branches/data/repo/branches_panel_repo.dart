@@ -7,7 +7,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/branch_models.dart';
 
 class BranchesPanelRepo {
-  BranchesPanelRepo({required ApiService api}) : _api = api;
+  BranchesPanelRepo({required this._api});
   final ApiService _api;
 
   String _q(String restaurantId) => '?restaurantId=$restaurantId';

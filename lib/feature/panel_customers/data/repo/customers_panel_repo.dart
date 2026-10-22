@@ -7,7 +7,7 @@ import 'package:tavo/core/network/panel_envelope.dart';
 import '../model/customer_models.dart';
 
 class CustomersPanelRepo {
-  CustomersPanelRepo({required ApiService api}) : _api = api;
+  CustomersPanelRepo({required this._api});
   final ApiService _api;
 
   Future<({List<PanelCustomer> customers, int page, int pages, int total})>
