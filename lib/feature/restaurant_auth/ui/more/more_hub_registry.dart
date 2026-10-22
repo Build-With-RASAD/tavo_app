@@ -51,3 +51,15 @@ class MoreHubRegistry {
 /// Published by Task 17's queue screen; the shell renders it as the
 /// Waitlist tab badge. Start at 0 (no badge).
 final ValueNotifier<int> waitlistBadgeCount = ValueNotifier(0);
+
+/// The staff shell's route back to its Orders tab.
+///
+/// The More hub builds its screens at DI time, long before the shell exists,
+/// so a hub screen cannot receive a shell callback through its constructor —
+/// the same constraint [waitlistBadgeCount] already works around. The shell
+/// registers its route here in `initState` and clears it on dispose; a hub
+/// screen that needs it (the tables screen, for an OCCUPIED table) reads it
+/// when it is built.
+///
+/// Null until the shell has mounted, and null again after it is disposed.
+VoidCallback? staffOpenOrders;

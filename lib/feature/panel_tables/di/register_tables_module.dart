@@ -23,7 +23,15 @@ void registerTablesModule() {
     id: 'tables',
     labelKey: 'tables',
     icon: Icons.table_chart_outlined,
-    builder: (restaurantId, venue) =>
-        TablesScreen(restaurantId: restaurantId, venue: venue),
+    // `staffOpenOrders` is the shell's route back to the Orders tab. The
+    // tables screen offers it when the user taps an OCCUPIED table, so the
+    // owner can jump straight to the order that is holding that table.
+    // It is read here, at push time, because the shell registers it after
+    // the hub tiles are built.
+    builder: (restaurantId, venue) => TablesScreen(
+      restaurantId: restaurantId,
+      venue: venue,
+      onOpenOrders: staffOpenOrders,
+    ),
   ));
 }

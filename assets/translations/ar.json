@@ -512,5 +512,6 @@
   "tbl_form_create": "إضافة طاولة",
   "tbl_form_invalid_code": "أدخل رمز الطاولة.",
   "tbl_form_invalid_seats": "يجب أن يكون عدد المقاعد بين 1 و 50.",
-  "tbl_form_failed": "تعذر حفظ التغييرات."
+  "tbl_form_failed": "تعذر حفظ التغييرات.",
+  "dlink_restaurant_unavailable": "هذا المطعم لم يعد متاحًا."
 }

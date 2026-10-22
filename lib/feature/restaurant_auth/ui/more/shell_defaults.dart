@@ -27,8 +27,13 @@ void registerShellDefaults() {
     id: 'tables',
     labelKey: 'tables',
     icon: Icons.table_chart_outlined,
-    builder: (restaurantId, venue) =>
-        TablesScreen(restaurantId: restaurantId, venue: venue),
+    // `staffOpenOrders` is the shell's route back to the Orders tab, read at
+    // push time — see the note on the declaration.
+    builder: (restaurantId, venue) => TablesScreen(
+      restaurantId: restaurantId,
+      venue: venue,
+      onOpenOrders: staffOpenOrders,
+    ),
   ));
   MoreHubRegistry.registerDefault(MoreHubEntry(
     id: 'customers',

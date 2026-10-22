@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/di/service_locator.dart';
+import 'package:tavo/core/navigation/app_navigator.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
@@ -42,6 +43,11 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
   void initState() {
     super.initState();
     registerShellDefaults(); // idempotent placeholder hub tiles
+    // The More hub builds its screens at DI time, before the shell exists,
+    // so the shell publishes its route to the Orders tab here. A hub screen
+    // (the tables screen) reads it when it is built — see the declaration
+    // in `more_hub_registry.dart`.
+    staffOpenOrders = _openOrdersTab;
     final cached = CacheHelper.getActiveRestaurant();
     final ids = widget.restaurants.map((r) => r.restaurantId);
     if (cached != null && ids.contains(cached)) {
@@ -51,6 +57,19 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
           ? widget.restaurants.first.restaurantId
           : '';
     }
+  }
+
+  @override
+  void dispose() {
+    staffOpenOrders = null;
+    super.dispose();
+  }
+
+  /// Closes a screen pushed from the More hub and shows the Orders tab.
+  void _openOrdersTab() {
+    if (!mounted) return;
+    popIfPossible();
+    setState(() => _tabIndex = 1);
   }
 
   StaffRestaurant get _venue {
