@@ -146,7 +146,74 @@ void main() {
     expect(find.text('Preparing'), findsOneWidget);
   });
 
-  testWidgets('served filter chip exists and filters through the repo', (
+  testWidgets('the screen filters by the status it was given', (tester) async {
+    await tester.pumpWidget(
+      appShell(const OrdersScreen(restaurantId: 'r1', statusFilter: 'pending')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    // The repo was asked for the given status…
+    expect(repo.lastFilter, 'pending');
+    // …the chip row shows it…
+    final chip = tester.widget<ChoiceChip>(
+      find.byKey(const ValueKey('orders_filter_pending')),
+    );
+    expect(chip.selected, isTrue);
+    // …and the header says so too: never a silent filter.
+    expect(
+      find.byKey(const ValueKey('orders_active_filter')),
+      findsOneWidget,
+    );
+    expect(find.text('Pending'), findsWidgets);
+  });
+
+  testWidgets('the header names the active filter', (tester) async {
+    await tester.pumpWidget(
+      appShell(const OrdersScreen(restaurantId: 'r1', statusFilter: 'ready')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repo.lastFilter, 'ready');
+    final pill = find.byKey(const ValueKey('orders_active_filter'));
+    expect(pill, findsOneWidget);
+    expect(
+      find.descendant(of: pill, matching: find.text('Ready')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('no status filter means no filter pill', (tester) async {
+    await tester.pumpWidget(appShell(const OrdersScreen(restaurantId: 'r1')));
+    await tester.pumpAndSettle();
+
+    expect(repo.lastFilter, isNull);
+    expect(find.byKey(const ValueKey('orders_active_filter')), findsNothing);
+  });
+
+  testWidgets('a chip tap reports the new filter to the owner', (tester) async {
+    String? reported;
+    await tester.pumpWidget(
+      appShell(
+        OrdersScreen(
+          restaurantId: 'r1',
+          onStatusFilterChanged: (status) => reported = status,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final chip = find.byKey(const ValueKey('orders_filter_served'));
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+
+    expect(repo.lastFilter, 'served');
+    expect(reported, 'served');
+  });
+
+testWidgets('served filter chip exists and filters through the repo', (
     tester,
   ) async {
     await tester.pumpWidget(appShell(const OrdersScreen(restaurantId: 'r1')));

@@ -129,6 +129,7 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
             children: [
               Expanded(
                 child: _LiveTile(
+                  keyId: 'dash_live_open_orders',
                   label: 'dash_open_orders'.tr(),
                   value: formatCount(live.openOrders),
                   icon: Icons.receipt_long_outlined,
@@ -138,6 +139,7 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
               SizedBox(width: 8.w),
               Expanded(
                 child: _LiveTile(
+                  keyId: 'dash_live_occupancy',
                   label: 'dash_occupancy'.tr(),
                   value: formatPercent(live.occupancyPct),
                   icon: Icons.table_chart_outlined,
@@ -147,6 +149,7 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
               SizedBox(width: 8.w),
               Expanded(
                 child: _LiveTile(
+                  keyId: 'dash_live_waitlist',
                   label: 'dash_waitlist_count'.tr(),
                   value: formatCount(live.waitlistCount),
                   icon: Icons.queue_music_outlined,
@@ -259,12 +262,16 @@ class _DeltaChip extends StatelessWidget {
 /// One tappable live figure.
 class _LiveTile extends StatelessWidget {
   const _LiveTile({
+    required this.keyId,
     required this.label,
     required this.value,
     required this.icon,
     this.onTap,
   });
 
+  /// The stable id of the tile (`dash_live_open_orders`, …) — the key does
+  /// not depend on the translated label, so it is stable in every locale.
+  final String keyId;
   final String label;
   final String value;
   final IconData icon;
@@ -273,6 +280,7 @@ class _LiveTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      key: ValueKey(keyId),
       onTap: onTap,
       borderRadius: BorderRadius.circular(12.r),
       child: Container(

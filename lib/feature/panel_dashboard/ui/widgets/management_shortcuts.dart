@@ -8,8 +8,11 @@ import 'package:tavo/core/theme/text_styles.dart';
 /// The management shortcuts: the screens a manager opens every shift.
 ///
 /// Each tile names a More-hub entry (`menu`, `staff`, `branches`, `reviews`,
-/// `settings`, `invoices`) and hands that id to the shell, which owns the
-/// navigation.
+/// `settings`) and hands that id to the shell, which owns the navigation.
+///
+/// There is deliberately NO `invoices` tile: the More hub has no invoice
+/// entry (the invoice module only has a per-order screen), and a shortcut
+/// that goes nowhere is worse than no shortcut.
 class ManagementShortcuts extends StatelessWidget {
   const ManagementShortcuts({super.key, this.onOpenHub});
 
@@ -18,12 +21,27 @@ class ManagementShortcuts extends StatelessWidget {
 
   /// The tiles, in order.
   static const List<({String id, String labelKey, IconData icon})> _tiles = [
-    (id: 'menu', labelKey: 'dash_shortcut_menu', icon: Icons.restaurant_menu_outlined),
+    (
+      id: 'menu',
+      labelKey: 'dash_shortcut_menu',
+      icon: Icons.restaurant_menu_outlined
+    ),
     (id: 'staff', labelKey: 'dash_shortcut_staff', icon: Icons.badge_outlined),
-    (id: 'branches', labelKey: 'dash_shortcut_branches', icon: Icons.storefront_outlined),
-    (id: 'reviews', labelKey: 'dash_shortcut_reviews', icon: Icons.star_border),
-    (id: 'settings', labelKey: 'dash_shortcut_settings', icon: Icons.settings_outlined),
-    (id: 'invoices', labelKey: 'dash_shortcut_invoices', icon: Icons.receipt_outlined),
+    (
+      id: 'branches',
+      labelKey: 'dash_shortcut_branches',
+      icon: Icons.storefront_outlined
+    ),
+    (
+      id: 'reviews',
+      labelKey: 'dash_shortcut_reviews',
+      icon: Icons.star_border
+    ),
+    (
+      id: 'settings',
+      labelKey: 'dash_shortcut_settings',
+      icon: Icons.settings_outlined
+    ),
   ];
 
   @override

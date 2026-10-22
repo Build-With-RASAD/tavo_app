@@ -39,6 +39,13 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
   late String _activeId;
   int _tabIndex = 0;
 
+  /// The status the Orders tab shows (`null` = every order).
+  ///
+  /// Owned here, not by `OrdersScreen`, because the dashboard and the More
+  /// hub both deep-link into the tab with a status while the tab is already
+  /// mounted — the shell is the only thing that sees both requests.
+  String? _ordersFilter;
+
   @override
   void initState() {
     super.initState();
@@ -66,10 +73,16 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
   }
 
   /// Closes a screen pushed from the More hub and shows the Orders tab.
-  void _openOrdersTab() {
+  ///
+  /// [status] narrows the list to one status; the dashboard's pipeline
+  /// stages hand theirs over so a count lands on the list it names.
+  void _openOrdersTab([String? status]) {
     if (!mounted) return;
     popIfPossible();
-    setState(() => _tabIndex = 1);
+    setState(() {
+      _tabIndex = 1;
+      _ordersFilter = status;
+    });
   }
 
   /// Opens a More-hub screen by its registry id (`menu`, `staff`,
@@ -101,7 +114,11 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
 
   void _switchTo(String restaurantId) {
     if (restaurantId == _activeId) return;
-    setState(() => _activeId = restaurantId);
+    setState(() {
+      _activeId = restaurantId;
+      // A filter belongs to the venue the user picked it in.
+      _ordersFilter = null;
+    });
     // Fire-and-forget: SharedPreferences updates its cache synchronously, so
     // a cold start right after the tap still reads the new venue.
     CacheHelper.setActiveRestaurant(restaurantId);
@@ -166,15 +183,29 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
                     // that acts on it. The order create-flow UI lands as its
                     // own task — until then the shortcut opens the orders
                     // tab (T23 endpoint behind it).
-                    onNewOrder: () => setState(() => _tabIndex = 1),
-                    onOpenOrders: (_) => setState(() => _tabIndex = 1),
+                    onNewOrder: () => setState(() {
+                      _tabIndex = 1;
+                      _ordersFilter = null;
+                    }),
+                    onOpenOrders: (status) => setState(() {
+                      _tabIndex = 1;
+                      _ordersFilter = status;
+                    }),
                     onOpenWaitlist: () => setState(() => _tabIndex = 3),
                     onOpenReservations: () => setState(() => _tabIndex = 2),
                     // The More hub lives on the last tab; a shortcut opens
                     // the hub screen itself.
                     onOpenHub: _openHub,
                   ),
-                  OrdersScreen(restaurantId: _activeId),
+                  OrdersScreen(
+                    restaurantId: _activeId,
+                    statusFilter: _ordersFilter,
+                    // The chip row is the user's own choice — the shell keeps
+                    // it, so switching tabs and back does not resurrect a
+                    // filter the user cleared.
+                    onStatusFilterChanged: (status) =>
+                        setState(() => _ordersFilter = status),
+                  ),
                   ReservationsTab(restaurantId: _activeId),
                   WaitlistTab(restaurantId: _activeId, venue: _venue),
                   MoreHubScreen(restaurantId: _activeId, venue: _venue),

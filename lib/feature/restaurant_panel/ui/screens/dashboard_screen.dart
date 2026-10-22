@@ -63,8 +63,10 @@ class DashboardScreen extends StatelessWidget {
   /// Dashboard shortcuts — tab switches / create-flow entry are shell-owned.
   final VoidCallback? onNewOrder;
 
-  /// Opens the orders tab, optionally filtered by [status].
-  final void Function(String status)? onOpenOrders;
+  /// Opens the orders tab, optionally filtered by [status] (`null` = every
+  /// order — the open-orders figure spans four statuses, so it opens the
+  /// tab unfiltered; the pipeline carries the exact per-status links).
+  final void Function(String? status)? onOpenOrders;
 
   /// Opens the waitlist tab.
   final VoidCallback? onOpenWaitlist;
@@ -106,7 +108,7 @@ class _DashboardView extends StatefulWidget {
   final String restaurantId;
   final StaffRestaurant venue;
   final VoidCallback? onNewOrder;
-  final void Function(String status)? onOpenOrders;
+  final void Function(String? status)? onOpenOrders;
   final VoidCallback? onOpenWaitlist;
   final VoidCallback? onOpenReservations;
   final void Function(String hubId)? onOpenHub;
@@ -180,9 +182,18 @@ class _DashboardViewState extends State<_DashboardView> {
             live: live,
             sparkline: analytics?.trend.daily ?? const [],
             revenueDeltaPct: analytics?.comparison.revenue.deltaPct,
-            onOpenOrders: () => widget.onOpenOrders?.call('pending'),
+            onOpenOrders: () => widget.onOpenOrders?.call(null),
             onOpenWaitlist: widget.onOpenWaitlist,
             onOpenTables: () => widget.onOpenHub?.call('tables'),
+          ),
+        ),
+        SizedBox(height: 10.h),
+        SectionErrorBoundary(
+          builder: (context) => OutlinedButton.icon(
+            key: const ValueKey('dash_quick_new_order'),
+            onPressed: widget.onNewOrder,
+            icon: const Icon(Icons.add_business_outlined),
+            label: Text('dash_quick_order'.tr()),
           ),
         ),
         SizedBox(height: 20.h),
@@ -247,8 +258,10 @@ class _DashboardViewState extends State<_DashboardView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SectionErrorBoundary(
-                builder: (context) =>
-                    _Card(child: KpiTiles(kpi: analytics?.kpi ?? const AnalyticsKpi())),
+                builder: (context) => _Card(
+                  title: 'dash_kpi_title'.tr(),
+                  child: KpiTiles(kpi: analytics?.kpi ?? const AnalyticsKpi()),
+                ),
               ),
               SizedBox(height: 10.h),
               SectionErrorBoundary(
@@ -307,7 +320,7 @@ class _DashboardViewState extends State<_DashboardView> {
   void _openAlert(String action) {
     switch (action) {
       case 'orders':
-        widget.onOpenOrders?.call('pending');
+        widget.onOpenOrders?.call(null);
         return;
       case 'reservations':
         widget.onOpenReservations?.call();

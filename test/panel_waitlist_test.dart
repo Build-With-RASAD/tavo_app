@@ -8,6 +8,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/panel_waitlist/data/model/waitlist_models.dart';
 import 'package:tavo/feature/panel_waitlist/data/repo/waitlist_panel_repo.dart';
 import 'package:tavo/feature/panel_waitlist/ui/logic/waitlist_panel_cubit.dart';
+import 'package:tavo/feature/panel_waitlist/ui/widgets/add_walkin_sheet.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/waitlist_tab.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
 
@@ -49,6 +50,37 @@ class _FakeWaitlistRepo extends WaitlistPanelRepo {
   // after tap+pump. A real repo is a network call, which always spans
   // frames; an instant fake would skip those frames entirely.
   static const _latency = Duration(milliseconds: 10);
+
+  /// The walk-in the sheet created (null until one is submitted).
+  PanelWaitlistEntry? created;
+
+  @override
+  Future<PanelWaitlistEntry> createWaitlistEntry({
+    required String restaurantId,
+    required int guestsCount,
+    required String name,
+    required String phone,
+    String? email,
+    String? specialRequests,
+  }) async {
+    calls.add('createWalkin:$name');
+    await Future<void>.delayed(_latency);
+    _maybeThrow();
+    final entry = PanelWaitlistEntry(
+      id: 'w1',
+      ticketCode: 'W1',
+      guestsCount: guestsCount,
+      customerName: name,
+      customerPhone: phone,
+      status: 'waiting',
+      createdAt: DateTime.now().toIso8601String(),
+      notes: specialRequests,
+    );
+    created = entry;
+    // The queue the staff member sees must contain the new entry.
+    entries = [entry, ...entries];
+    return entry;
+  }
 
   @override
   Future<({List<PanelWaitlistEntry> entries, int page, int pages, int total})>
@@ -201,6 +233,85 @@ void main() {
     await tester.tap(find.byKey(const Key('filter_waitlist_notified')));
     await tester.pumpAndSettle();
     expect(repo.calls, contains('getWaitlist:1:notified'));
+  });
+
+  testWidgets('the walk-in sheet creates an entry that lands in the queue',
+      (tester) async {
+    final repo = _FakeWaitlistRepo()..entries = [_entry('e1', 'waiting')];
+    await _pumpWaitlist(tester, repo);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('waitlist_add_walkin')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AddWalkinSheet), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('dash_field_name')),
+      'Nadia',
+    );
+    await tester.enterText(
+      find.byKey(const Key('dash_field_phone')),
+      '+966500000009',
+    );
+    await tester.enterText(
+      find.byKey(const Key('dash_field_guests')),
+      '4',
+    );
+    await tester.enterText(
+      find.byKey(const Key('dash_field_email')),
+      'nadia@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('dash_field_notes')),
+      'Window seat',
+    );
+
+    await tester.tap(find.byKey(const Key('dash_submit')));
+    await tester.pumpAndSettle();
+
+    // The sheet closed and the entry reached the backend…
+    expect(find.byType(AddWalkinSheet), findsNothing);
+    expect(repo.created, isNotNull);
+    expect(repo.created!.customerName, 'Nadia');
+    expect(repo.created!.customerPhone, '+966500000009');
+    expect(repo.created!.guestsCount, 4);
+    expect(repo.created!.notes, 'Window seat');
+    // …and it is in the queue, visible without leaving the tab.
+    expect(find.text('Nadia'), findsOneWidget);
+    expect(repo.calls, contains('createWalkin:Nadia'));
+  });
+
+  testWidgets('a failing walk-in keeps the sheet open with the message',
+      (tester) async {
+    final repo = _FakeWaitlistRepo()..entries = [_entry('e1', 'waiting')];
+    await _pumpWaitlist(tester, repo);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('waitlist_add_walkin')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('dash_field_name')),
+      'Nadia',
+    );
+    await tester.enterText(
+      find.byKey(const Key('dash_field_phone')),
+      '+966500000009',
+    );
+
+    repo.failure = Exception('walk-in rejected');
+    await tester.tap(find.byKey(const Key('dash_submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AddWalkinSheet), findsOneWidget);
+    // The message is beside the form. It also lands on the queue behind the
+    // sheet (the same `actionError`), so the finder is scoped to the sheet.
+    expect(
+      find.descendant(
+        of: find.byType(AddWalkinSheet),
+        matching: find.textContaining('walk-in rejected'),
+      ),
+      findsOneWidget,
+    );
   });
 
   test('nextWaitlistActions mirrors the backend transition table', () {

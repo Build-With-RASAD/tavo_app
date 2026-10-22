@@ -12,6 +12,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/panel_waitlist/data/model/waitlist_models.dart';
 import 'package:tavo/feature/panel_waitlist/data/repo/waitlist_panel_repo.dart';
 import 'package:tavo/feature/panel_waitlist/ui/logic/waitlist_panel_cubit.dart';
+import 'package:tavo/feature/panel_waitlist/ui/widgets/add_walkin_sheet.dart';
 
 /// `12` → `12m`, `75` → `1h 15m` — waited time ticks only on rebuild
 /// (no timer, so widget tests stay deterministic).
@@ -65,9 +66,33 @@ class WaitlistTab extends StatelessWidget {
         builder: (context, state) {
           final cubit = context.read<WaitlistPanelCubit>();
           return Scaffold(
+            // The queue's own "add a walk-in" action: the form lives with
+            // the queue, so the new entry lands in the list right away.
+            floatingActionButton: FloatingActionButton.extended(
+              key: const ValueKey('waitlist_add_walkin'),
+              onPressed: () => _openWalkinSheet(context, cubit),
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              label: Text('dash_quick_waitlist'.tr()),
+            ),
             body: SafeArea(child: _buildBody(context, cubit, state)),
           );
         },
+      ),
+    );
+  }
+
+  /// Opens the walk-in sheet with the tab's own cubit, so a created entry
+  /// refreshes the queue behind it.
+  Future<void> _openWalkinSheet(
+    BuildContext context,
+    WaitlistPanelCubit cubit,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => BlocProvider.value(
+        value: cubit,
+        child: const AddWalkinSheet(),
       ),
     );
   }

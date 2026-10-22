@@ -1872,6 +1872,71 @@ report).
 Before: **25 issues**. After: **25 issues** — no new issue, no new
 deprecation.
 
+## Task 32-F — closing the dashboard's four gaps
+
+Append-only. The implementing agent's session died mid-flight (upstream
+endpoint error); the tree it left was finished and gated by the controller.
+
+### Gaps closed
+
+1. **The walk-in UI is back.** `AddWalkinSheet`
+   (`lib/feature/panel_waitlist/ui/widgets/add_walkin_sheet.dart`) +
+   `WaitlistPanelCubit.addWalkIn` + a `waitlist_add_walkin` FAB on the
+   Waitlist tab. The sheet closes **only** when the backend accepted the
+   entry; a failure keeps the form and shows the message beside it.
+2. **`OrdersScreen` takes a `statusFilter`** and reports chip taps through
+   `onStatusFilterChanged`. The active filter is named in the header
+   (`orders_active_filter`) — a list is never silently narrowed.
+3. **The `invoices` shortcut is gone.** `MoreHubRegistry` has no `invoices`
+   entry and the invoice module only has a per-order screen, so a tile that
+   opened nothing was removed along with its i18n key.
+4. **21 orphaned i18n keys removed** from `en.json` and `ar.json` (parity
+   kept), and `dash_field_email` added.
+5. **Controller wiring**: `StaffShellScreen` owns `_ordersFilter`, so a
+   pipeline stage lands on the Orders tab already filtered, and a filter
+   belongs to the venue it was picked in.
+
+### RED — the new coverage, before the production change
+
+Written against the pre-change widget signatures; each failed to compile or
+to find its widget.
+
+```
+test/orders_screen_widget_test.dart:  ArgumentError: No named parameter with the name 'statusFilter'
+test/staff_shell_widget_test.dart:    Bad state: No element   // no dash_pipeline_pending
+test/panel_waitlist_test.dart:        Bad state: No element   // no waitlist_add_walkin
+```
+
+### GREEN — the three touched suites
+
+`flutter test test/panel_waitlist_test.dart test/orders_screen_widget_test.dart test/staff_shell_widget_test.dart`
+
+```
+00:30 +20: (tearDownAll)
+00:30 +20: All tests passed!
+```
+
+### GREEN — full suite
+
+`flutter test`
+
+```
+00:46 +300: /Users/elmarakbeno/development/tavo/tavo-app/test/panel_tables_redesign_test.dart: (tearDownAll)
+00:46 +300: All tests passed!
+```
+
+Before this task: **289 passed, 0 failed**. After: **300 passed, 0 failed**
+(+11, no test deleted).
+
+### `flutter analyze`
+
+Before: **25 issues**. After: **25 issues** — zero new.
+
+Note: the crashed agent left two compile errors (`restaurantId` in
+`_openDetails`, a `void Function(String)` passed to a `VoidCallback` in
+`panel_dashboard_v2_test.dart`); both were fixed here, which is why the
+analyze gate is clean rather than merely unchanged.
+
 ## Task 33-B — motion adoption across both app surfaces
 
 _(pending)_

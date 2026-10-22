@@ -164,6 +164,39 @@ void main() {
     expect(find.text('4,820.50'), findsOneWidget);
   });
 
+  testWidgets('the live band and the quick actions reach the shell',
+      (tester) async {
+    usePhoneSurface(tester);
+    String? orders;
+    var newOrder = false;
+    var waitlist = false;
+
+    await tester.pumpWidget(
+      appShell(
+        DashboardScreen(
+          restaurantId: 'r1',
+          venue: _venue,
+          onOpenOrders: (status) => orders = status,
+          onNewOrder: () => newOrder = true,
+          onOpenWaitlist: () => waitlist = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The open-orders figure opens the Orders tab unfiltered.
+    await tester.tap(find.byKey(const ValueKey('dash_live_open_orders')));
+    expect(orders, isNull);
+
+    // The waitlist figure opens the waitlist tab.
+    await tester.tap(find.byKey(const ValueKey('dash_live_waitlist')));
+    expect(waitlist, isTrue);
+
+    // The quick action hands the new-order flow to the shell.
+    await tester.tap(find.byKey(const ValueKey('dash_quick_new_order')));
+    expect(newOrder, isTrue);
+  });
+
   testWidgets('a failing read renders an inline error, not a blank page',
       (tester) async {
     repo.error = 'No internet connection';

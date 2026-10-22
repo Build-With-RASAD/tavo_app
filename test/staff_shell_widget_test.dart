@@ -17,6 +17,7 @@ import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/booking/data/model/booking_model.dart';
+import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
 import 'package:tavo/feature/panel_dashboard/data/repo/analytics_panel_repo.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_cubit.dart';
@@ -62,6 +63,8 @@ class FakePanelRepo extends RestaurantPanelRepo {
 
   int dashboardCalls = 0;
   String? lastRestaurantId;
+  /// The status the shell last asked the orders endpoint for.
+  String? lastStatus;
   List<PanelOrder> orders = const [];
 
   @override
@@ -83,6 +86,7 @@ class FakePanelRepo extends RestaurantPanelRepo {
     int limit = 20,
     String? status,
   }) async {
+    lastStatus = status;
     return PagedResult(
       items: orders,
       page: 1,
@@ -169,6 +173,32 @@ final _order = PanelOrder.fromJson(const {
   'paymentStatus': 'paid',
   'createdAt': '2026-09-01T11:52:00.000Z',
 });
+
+/// Analytics repo with a populated live pipeline, so the dashboard's stage
+/// tiles have something to tap.
+class PipelineAnalyticsRepo extends AnalyticsPanelRepo {
+  PipelineAnalyticsRepo() : super(api: ApiService());
+
+  @override
+  Future<DashboardAnalytics> getAnalytics({
+    required String restaurantId,
+    required DateTime from,
+    required DateTime to,
+  }) async =>
+      DashboardAnalytics.fromJson(const {
+        'live': {
+          'openOrders': 4,
+          'ordersByStatus': {'pending': 3, 'preparing': 1},
+        },
+      });
+
+  @override
+  Future<LiveSnapshot> getLiveSnapshot(String restaurantId) async =>
+      const LiveSnapshot(
+        openOrders: 4,
+        ordersByStatus: {'pending': 3, 'preparing': 1},
+      );
+}
 
 int _selectedIndex(WidgetTester tester) =>
     tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex;
@@ -275,6 +305,36 @@ void main() {
     expect(_selectedIndex(tester), 1);
     expect(find.byType(OrdersScreen), findsOneWidget);
     expect(find.text('ORD-2026-011'), findsOneWidget);
+  });
+
+  testWidgets('a pipeline stage opens Orders filtered by that status',
+      (tester) async {
+    // The dashboard is a `ListView`; the pipeline is below the fold on the
+    // default 800×600 surface and would never be built. Give the test a
+    // tall surface so the whole page exists.
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    // A populated pipeline is what makes a stage tappable.
+    getIt.unregister<AnalyticsPanelRepo>();
+    getIt.registerLazySingleton<AnalyticsPanelRepo>(PipelineAnalyticsRepo.new);
+
+    await tester.pumpWidget(appShell(StaffShellScreen(restaurants: _venues)));
+    await tester.pumpAndSettle();
+
+    final stage = find.byKey(const ValueKey('dash_pipeline_pending'));
+    await tester.ensureVisible(stage);
+    await tester.pumpAndSettle();
+    await tester.tap(stage);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    // The count landed on the list it names: Orders tab, filtered, and the
+    // filter is visible in the header rather than silently narrowing.
+    expect(_selectedIndex(tester), 1);
+    expect(panelRepo.lastStatus, 'pending');
+    expect(find.byKey(const ValueKey('orders_active_filter')), findsOneWidget);
   });
 
   testWidgets('logout returns to the staff login screen', (tester) async {

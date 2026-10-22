@@ -445,6 +445,38 @@ void main() {
       expect(find.text('1'), findsWidgets); // open orders + waitlist
     });
 
+    testWidgets('the live band links every figure into the tab that acts on it',
+        (tester) async {
+      final analytics = DashboardAnalytics.fromJson(sampleAnalytics);
+      var orders = false;
+      var waitlist = false;
+      var tables = false;
+
+      await _pump(
+        tester,
+        Scaffold(
+          body: LiveHeroBand(
+            live: analytics.live,
+            sparkline: analytics.trend.daily,
+            onOpenOrders: () => orders = true,
+            onOpenWaitlist: () => waitlist = true,
+            onOpenTables: () => tables = true,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('dash_live_open_orders')));
+      // The open-orders figure spans four statuses — the Orders tab opens
+      // unfiltered (the pipeline carries the exact per-status links).
+      expect(orders, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('dash_live_waitlist')));
+      expect(waitlist, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('dash_live_occupancy')));
+      expect(tables, isTrue);
+    });
+
     testWidgets('the KPI tiles render the values from the payload',
         (tester) async {
       final analytics = DashboardAnalytics.fromJson(sampleAnalytics);

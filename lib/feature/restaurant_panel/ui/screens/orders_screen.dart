@@ -24,10 +24,35 @@ import 'package:tavo/feature/panel_invoice/ui/screens/panel_invoice_screen.dart'
 /// [ErrorStateView] / [EmptyStateView] / content, mirroring
 /// `DashboardScreen`'s wiring. Action failures surface as a SnackBar while
 /// every row stays on screen (`OrdersLoaded.actionError`).
-class OrdersScreen extends StatelessWidget {
-  const OrdersScreen({super.key, required this.restaurantId});
+///
+/// [statusFilter] is the status the screen opens with — the dashboard hands
+/// the status of the pipeline stage that was tapped, so a number in the
+/// dashboard really does land on the list it names. The active filter is
+/// ALWAYS visible (the chip row selects it and the header names it): a
+/// silent filter is never acceptable.
+class OrdersScreen extends StatefulWidget {
+  const OrdersScreen({
+    super.key,
+    required this.restaurantId,
+    this.statusFilter,
+    this.onStatusFilterChanged,
+  });
 
   final String restaurantId;
+
+  /// The status the list opens with (`null` = every status).
+  final String? statusFilter;
+
+  /// Reports a filter the user picked in the chip row, so the owner of the
+  /// screen can keep its own state in sync.
+  final void Function(String? status)? onStatusFilterChanged;
+
+  @override
+  State<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends State<OrdersScreen> {
+  late final OrdersCubit _cubit;
 
   /// The filter row: `all` plus every status the backend accepts
   /// (`GET /orders?status=`).
@@ -42,9 +67,38 @@ class OrdersScreen extends StatelessWidget {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _cubit = getIt<OrdersCubit>(param1: widget.restaurantId);
+    final filter = widget.statusFilter;
+    // One request: `setFilter` sets the filter and loads page 1 itself.
+    if (filter == null) {
+      _cubit.load();
+    } else {
+      _cubit.setFilter(filter);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant OrdersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The owner changed the filter (the dashboard's pipeline stage): apply
+    // it to the list that is already on screen.
+    if (widget.statusFilter != oldWidget.statusFilter) {
+      _cubit.setFilter(widget.statusFilter);
+    }
+  }
+
+  @override
+  void dispose() {
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<OrdersCubit>(param1: restaurantId)..load(),
+    return BlocProvider.value(
+      value: _cubit,
       child: BlocConsumer<OrdersCubit, OrdersState>(
         listener: (context, state) {
           if (state is OrdersLoaded && state.actionError != null) {
@@ -69,7 +123,7 @@ class OrdersScreen extends StatelessWidget {
             body: SafeArea(
               child: Column(
                 children: [
-                  _buildHeader(context),
+                  _buildHeader(context, filter),
                   _buildFilters(context, cubit, filter),
                   Expanded(child: _buildBody(context, cubit, state)),
                 ],
@@ -81,12 +135,40 @@ class OrdersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String? filter) {
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
       child: Row(
         children: [
           Text('orders'.tr(), style: TextStyles.font20Black500Weight(context)),
+          if (filter != null) ...[
+            SizedBox(width: 8.w),
+            // The active filter is named in the header — the list is never
+            // silently narrowed.
+            Container(
+              key: const ValueKey('orders_active_filter'),
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: ColorsManager.primary100.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(20.r),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.filter_alt_outlined,
+                    size: 14.r,
+                    color: ColorsManager.primary500,
+                  ),
+                  SizedBox(width: 4.w),
+                  Text(
+                    orderStatusLabelKey(filter).tr(),
+                    style: TextStyles.font12Primary400400Weight(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -117,8 +199,12 @@ class OrdersScreen extends StatelessWidget {
                         : orderStatusLabelKey(status).tr(),
                   ),
                   selected: (filter ?? 'all') == status,
-                  onSelected: (_) =>
-                      cubit.setFilter(status == 'all' ? null : status),
+                  onSelected: (_) {
+                    final next = status == 'all' ? null : status;
+                    cubit.setFilter(next);
+                    // The owner of the screen keeps its own filter in sync.
+                    widget.onStatusFilterChanged?.call(next);
+                  },
                 ),
               ),
           ],
@@ -180,7 +266,7 @@ class OrdersScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) =>
-          OrderDetailsSheet(order: order, restaurantId: restaurantId),
+          OrderDetailsSheet(order: order, restaurantId: widget.restaurantId),
     );
   }
 }

@@ -114,6 +114,48 @@ class WaitlistPanelCubit extends Cubit<WaitlistPanelState> {
     }
   }
 
+  /// Adds a walk-in to the queue and refreshes it, so the new entry shows
+  /// up in the list behind the sheet.
+  ///
+  /// Returns `true` when the backend accepted the entry. A failure keeps
+  /// the queue on screen and surfaces [WaitlistPanelLoaded.actionError]
+  /// beside it.
+  Future<bool> addWalkIn({
+    required int guestsCount,
+    required String name,
+    required String phone,
+    String? email,
+    String? notes,
+  }) async {
+    if (isClosed) return false;
+    final s = state;
+    if (s is WaitlistPanelLoaded) emit(s.copyWith(clearError: true));
+    try {
+      await _repo.createWaitlistEntry(
+        restaurantId: restaurantId,
+        guestsCount: guestsCount,
+        name: name,
+        phone: phone,
+        email: email,
+        specialRequests: notes,
+      );
+      if (isClosed) return true;
+      // The queue is re-read so the new entry lands in the list (and in the
+      // shell badge) instead of being spliced in by hand.
+      await load();
+      return true;
+    } catch (e) {
+      if (isClosed) return false;
+      final current = state;
+      if (current is WaitlistPanelLoaded) {
+        emit(current.copyWith(actionError: _message(e)));
+      } else {
+        emit(WaitlistPanelError(_message(e)));
+      }
+      return false;
+    }
+  }
+
   void _publishBadge(List<PanelWaitlistEntry> entries) {
     waitlistBadgeCount.value = entries
         .where((e) => e.status == 'waiting' || e.status == 'notified')

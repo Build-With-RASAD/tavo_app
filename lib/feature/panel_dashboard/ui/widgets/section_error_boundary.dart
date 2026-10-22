@@ -106,12 +106,18 @@ class _ErrorCard extends StatelessWidget {
               SizedBox(width: 8.w),
               Expanded(
                 child: Text(
-                  message,
-                  style: TextStyles.font12DarkGray400Weight(context)
+                  'dash_section_error'.tr(),
+                  style: TextStyles.font12Black500Weight(context)
                       .copyWith(color: errorColor),
                 ),
               ),
             ],
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            message,
+            style: TextStyles.font12DarkGray400Weight(context)
+                .copyWith(color: errorColor),
           ),
           if (onRetry != null) ...[
             SizedBox(height: 8.h),
