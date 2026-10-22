@@ -506,7 +506,7 @@ void main() {
     expect(loaded.tables.map((t) => t.id), isNot(contains('p1')));
   });
 
-  test('snap math rounds to 0.05 steps and moveTable applies it', () {
+  test('snap math rounds to 0.05 steps and moveTable applies it', () async {
     expect(TablesPanelCubit.snapToGrid(0.13), 0.15);
     expect(TablesPanelCubit.snapToGrid(0.07), 0.05);
     expect(TablesPanelCubit.snapToGrid(0.98), 1.0);
@@ -521,6 +521,9 @@ void main() {
       ];
     final cubit = TablesPanelCubit(repo, restaurantId: 'r1');
     addTearDown(cubit.close);
+    // The cubit must hold the table before it can be moved: `moveTable` is a
+    // no-op while the state is still `TablesPanelInitial`.
+    await cubit.load();
 
     cubit.moveTable('p1', 0.13, 0.97, snap: true);
     var loaded = cubit.state as TablesPanelLoaded;

@@ -131,15 +131,16 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
   }
 
   /// POST /tables/:tableTypeId/physical for the selected type (T28).
-  Future<void> createTable({
+  /// Returns `true` when the table was created.
+  Future<bool> createTable({
     required String code,
     required int seats,
     String? zone,
   }) async {
     final s = state;
-    if (s is! TablesPanelLoaded || s.creating) return;
+    if (s is! TablesPanelLoaded || s.creating) return false;
     final typeId = s.selectedTypeId;
-    if (typeId == null) return;
+    if (typeId == null) return false;
     emit(s.copyWith(creating: true, clearError: true));
     try {
       final created = await _repo.createPhysicalTable(
@@ -149,21 +150,24 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
         seats: seats,
         zone: zone,
       );
-      if (isClosed) return;
+      if (isClosed) return false;
       final base = _loaded(s);
       emit(base.copyWith(
         tables: [...base.tables, created],
         creating: false,
         clearError: true,
       ));
+      return true;
     } catch (e) {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(_loaded(s).copyWith(creating: false, actionError: _message(e)));
+      return false;
     }
   }
 
   /// PUT /physical-tables/:id — code/seats/zone edit from the detail sheet.
-  Future<void> updateTable(
+  /// Returns `true` when the table was updated.
+  Future<bool> updateTable(
     String id, {
     required String code,
     required int seats,
@@ -171,7 +175,7 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
     bool clearZone = false,
   }) async {
     final s = state;
-    if (s is! TablesPanelLoaded) return;
+    if (s is! TablesPanelLoaded) return false;
     emit(s.copyWith(actionId: id, clearError: true));
     try {
       final updated = await _repo.updatePhysicalTable(
@@ -182,7 +186,7 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
         zone: zone,
         clearZone: clearZone,
       );
-      if (isClosed) return;
+      if (isClosed) return false;
       final base = _loaded(s);
       emit(base.copyWith(
         tables: [
@@ -191,30 +195,35 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
         clearAction: true,
         clearError: true,
       ));
+      return true;
     } catch (e) {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      return false;
     }
   }
 
   /// DELETE /physical-tables/:id — the backend's 409 blockers (open order /
   /// active reservation) surface as [TablesPanelLoaded.actionError].
-  Future<void> deleteTable(String id) async {
+  /// Returns `true` when the table was deleted.
+  Future<bool> deleteTable(String id) async {
     final s = state;
-    if (s is! TablesPanelLoaded) return;
+    if (s is! TablesPanelLoaded) return false;
     emit(s.copyWith(actionId: id, clearError: true));
     try {
       await _repo.deletePhysicalTable(restaurantId: restaurantId, id: id);
-      if (isClosed) return;
+      if (isClosed) return false;
       final base = _loaded(s);
       emit(base.copyWith(
         tables: [for (final t in base.tables) if (t.id != id) t],
         clearAction: true,
         clearError: true,
       ));
+      return true;
     } catch (e) {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      return false;
     }
   }
 

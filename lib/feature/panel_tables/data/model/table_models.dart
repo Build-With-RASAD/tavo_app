@@ -28,7 +28,7 @@ class PanelPhysicalTable {
     required this.seats,
     required this.status,
     this.zone, // T28: free-form zone label (null = unassigned)
-    this.occupied = false, // T28: computed server-side (E2 open-order rule)
+    this.occupied, // T28: server-side occupancy (null = field absent)
     this.x,
     this.y,
   });
@@ -39,11 +39,23 @@ class PanelPhysicalTable {
   final int seats;
   final String status;
   final String? zone;
-  final bool occupied;
+
+  /// Server-computed occupancy (E2 rule: the table has an order whose
+  /// `orderStatus` is neither `served` nor `cancelled`).
+  ///
+  /// `null` means the backend did not send the field at all. The client
+  /// never re-derives occupancy from a second rule — this screen has no
+  /// order list to derive it from — so an absent field simply reads as
+  /// "not occupied" instead of inventing a third rule.
+  final bool? occupied;
+
   final double? x; // null → tray (Task 4: unpositioned)
   final double? y;
 
   bool get positioned => x != null && y != null;
+
+  /// The authoritative occupancy flag used for colours and the delete gate.
+  bool get isOccupied => occupied ?? false;
 
   PanelPhysicalTable copyWith({
     String? code,
@@ -70,6 +82,7 @@ class PanelPhysicalTable {
   factory PanelPhysicalTable.fromJson(Map<String, dynamic> json) {
     final pos = json['position'];
     final typeId = json['tableTypeId'];
+    final rawOccupied = json['occupied'];
     return PanelPhysicalTable(
       id: json['_id'] as String? ?? '',
       tableTypeId: typeId is Map ? typeId['_id'] as String? ?? '' : '$typeId',
@@ -77,7 +90,7 @@ class PanelPhysicalTable {
       seats: (json['seats'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'available',
       zone: json['zone'] as String?,
-      occupied: json['occupied'] as bool? ?? false,
+      occupied: rawOccupied is bool ? rawOccupied : null,
       x: pos is Map ? (pos['x'] as num?)?.toDouble() : null,
       y: pos is Map ? (pos['y'] as num?)?.toDouble() : null,
     );
