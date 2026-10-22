@@ -72,6 +72,26 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
     setState(() => _tabIndex = 1);
   }
 
+  /// Opens a More-hub screen by its registry id (`menu`, `staff`,
+  /// `branches`, `reviews`, `settings`) and shows the hub tab.
+  ///
+  /// An unknown id still lands on the hub tab rather than swallowing the tap,
+  /// so a shortcut to a module that has not been registered yet never leaves
+  /// the user on a dead screen.
+  void _openHub(String hubId) {
+    if (!mounted) return;
+    setState(() => _tabIndex = 4);
+    for (final entry in MoreHubRegistry.entries) {
+      if (entry.id != hubId) continue;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => entry.builder(_activeId, _venue),
+        ),
+      );
+      return;
+    }
+  }
+
   StaffRestaurant get _venue {
     for (final r in widget.restaurants) {
       if (r.restaurantId == _activeId) return r;
@@ -142,12 +162,17 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
                   DashboardScreen(
                     restaurantId: _activeId,
                     venue: _venue,
-                    // Wave E2: dashboard shortcuts switch tabs. The order
-                    // create-flow UI lands as its own task — until then the
-                    // shortcut opens the orders tab (T23 endpoint behind it).
+                    // Wave 2: every dashboard number is a link into the tab
+                    // that acts on it. The order create-flow UI lands as its
+                    // own task — until then the shortcut opens the orders
+                    // tab (T23 endpoint behind it).
                     onNewOrder: () => setState(() => _tabIndex = 1),
                     onOpenOrders: (_) => setState(() => _tabIndex = 1),
                     onOpenWaitlist: () => setState(() => _tabIndex = 3),
+                    onOpenReservations: () => setState(() => _tabIndex = 2),
+                    // The More hub lives on the last tab; a shortcut opens
+                    // the hub screen itself.
+                    onOpenHub: _openHub,
                   ),
                   OrdersScreen(restaurantId: _activeId),
                   ReservationsTab(restaurantId: _activeId),

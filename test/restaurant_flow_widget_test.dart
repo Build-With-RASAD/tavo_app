@@ -20,12 +20,11 @@ import 'package:tavo/feature/restaurant_panel/data/model/dashboard_stats.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/paged_result.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
 import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
-import 'package:tavo/feature/restaurant_panel/ui/logic/dashboard_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 
 import 'helpers/app_shell.dart';
-import 'helpers/dashboard_extras_helper.dart';
+import 'helpers/dashboard_analytics_helper.dart';
 
 /// End-to-end widget coverage for the staff flow:
 /// login → OTP → shell → confirm action.
@@ -197,14 +196,13 @@ void main() {
     // The OTP step now lands on StaffShellScreen, which builds the
     // dashboard / orders tabs through get_it.
     getIt.registerFactory<RestaurantPanelRepo>(() => panelRepo);
-    getIt.registerFactory<DashboardCubit>(() => DashboardCubit(panelRepo));
     getIt.registerFactoryParam<OrdersCubit, String, void>(
       (restaurantId, _) =>
           OrdersCubit(panelRepo, restaurantId: restaurantId),
     );
-    // Wave E2: the OTP flow lands on the shell, whose dashboard tab
-    // builds the extras section too.
-    registerDashboardExtrasForTests();
+    // Wave 2: the OTP flow lands on the shell, whose dashboard tab reads
+    // the analytics endpoints.
+    registerDashboardAnalyticsForTests();
   });
 
   tearDown(getIt.reset);

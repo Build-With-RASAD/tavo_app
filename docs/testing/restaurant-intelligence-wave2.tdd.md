@@ -764,7 +764,270 @@ requires.
 
 ## Task 33-A — motion foundation
 
-_(pending)_
+Files: `lib/core/animation/motion_tokens.dart`,
+`lib/core/animation/motion.dart`,
+`lib/core/animation/primitives/{spring_press,spring_reveal,spring_counter,spring_sheet}.dart`,
+`lib/core/animation/shaders/{shader_program_loader,shader_painters}.dart`,
+`lib/core/animation/shaders/{gooey,liquid,aurora}.frag`,
+`lib/core/theme/motion_theme_extension.dart`,
+`test/motion_system_test.dart` (22 cases).
+
+### RED — the new file does not exist yet
+
+Command: `flutter test test/motion_system_test.dart`
+
+```
+00:00 +0: loading /Users/elmarakbeno/development/tavo/tavo-app/test/motion_system_test.dart
+test/motion_system_test.dart:6:8: Error: Error when reading 'lib/core/animation/motion.dart': No such file or directory
+import 'package:tavo/core/animation/motion.dart';
+       ^
+test/motion_system_test.dart:7:8: Error: Error when reading 'lib/core/animation/motion_tokens.dart': No such file or directory
+import 'package:tavo/core/animation/motion_tokens.dart';
+       ^
+test/motion_system_test.dart:8:8: Error: Error when reading 'lib/core/animation/primitives/spring_counter.dart': No such file or directory
+import 'package:tavo/core/animation/primitives/spring_counter.dart';
+       ^
+test/motion_system_test.dart:9:8: Error: Error when reading 'lib/core/animation/primitives/spring_press.dart': No such file or directory
+import 'package:tavo/core/animation/primitives/spring_press.dart';
+       ^
+test/motion_system_test.dart:10:8: Error: Error when reading 'lib/core/animation/primitives/spring_reveal.dart': No such file or directory
+import 'package:tavo/core/animation/primitives/spring_reveal.dart';
+       ^
+test/motion_system_test.dart:11:8: Error: Error when reading 'lib/core/animation/primitives/spring_sheet.dart': No such file or directory
+import 'package:tavo/core/animation/primitives/spring_sheet.dart';
+       ^
+test/motion_system_test.dart:12:8: Error: Error when reading 'lib/core/animation/shaders/shader_painters.dart': No such file or directory
+import 'package:tavo/core/animation/shaders/shader_painters.dart';
+       ^
+test/motion_system_test.dart:13:8: Error: Error when reading 'lib/core/animation/shaders/shader_program_loader.dart': No such file or directory
+import 'package:tavo/core/animation/shaders/shader_program_loader.dart';
+       ^
+test/motion_system_test.dart:14:8: Error: Error when reading 'lib/core/theme/motion_theme_extension.dart': No such file or directory
+import 'package:tavo/core/theme/motion_theme_extension.dart';
+       ^
+test/motion_system_test.dart:73:35: Error: Type 'ShaderProgramLoader' not found.
+class _RecordingLoader implements ShaderProgramLoader {
+                                  ^^^^^^^^^^^^^^^^^^^
+test/motion_system_test.dart:41:23: Error: Undefined name 'SpringPress'.
+      of: find.byType(SpringPress),
+                      ^^^^^^^^^^^
+test/motion_system_test.dart:53:27: Error: Undefined name 'SpringReveal'.
+          of: find.byType(SpringReveal),
+                          ^^^^^^^^^^^^
+test/motion_system_test.dart:65:23: Error: Undefined name 'SpringSheet'.
+      of: find.byType(SpringSheet),
+                      ^^^^^^^^^^^
+test/motion_system_test.dart:86:14: Error: Undefined name 'AppDurations'.
+      expect(AppDurations.fast, const Duration(milliseconds: 150));
+             ^^^^^^^^^^^^
+test/motion_system_test.dart:87:14: Error: Undefined name 'AppDurations'.
+      expect(AppDurations.normal, const Duration(milliseconds: 250));
+             ^^^^^^^^^^^^
+test/motion_system_test.dart:88:14: Error: Undefined name 'AppDurations'.
+      expect(AppDurations.slow, const Duration(milliseconds: 400));
+             ^^^^^^^^^^^^
+test/motion_system_test.dart:89:14: Error: Undefined name 'AppDurations'.
+      expect(AppDurations.hero, const Duration(milliseconds: 500));
+             ^^^^^^^^^^^^
+test/motion_system_test.dart:93:14: Error: Undefined name 'AppCurves'.
+      expect(AppCurves.easeOut, Curves.easeOutCubic);
+             ^^^^^^^^^
+test/motion_system_test.dart:94:14: Error: Undefined name 'AppCurves'.
+      expect(AppCurves.easeIn, Curves.easeInCubic);
+             ^^^^^^^^^
+test/motion_system_test.dart:95:14: Error: Undefined name 'AppCurves'.
+      expect(AppCurves.emphasized, const Cubic(0.2, 0.0, 0.0, 1.0));
+             ^^^^^^^^^
+test/motion_system_test.dart:99:14: Error: Undefined name 'AppSprings'.
+      expect(AppSprings.snappy.mass, 1);
+             ^^^^^^^^^^
+[...]
+  Failed to load "/Users/elmarakbeno/development/tavo/tavo-app/test/motion_system_test.dart":
+  Compilation failed for testPath=/Users/elmarakbeno/development/tavo/tavo-app/test/motion_system_test.dart: test/motion_system_test.dart:6:8: Error: Error when reading 'lib/core/animation/motion.dart': No such file or directory
+  ...
+  .
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  /Users/elmarakbeno/development/tavo/tavo-app/test/motion_system_test.dart: loading /Users/elmarakbeno/development/tavo/tavo-app/test/motion_system_test.dart
+```
+
+(The full compiler output is 528 lines — 9 missing libraries plus every
+reference to a name that does not exist yet.)
+
+### GREEN — the focused suite
+
+Command: `flutter test test/motion_system_test.dart`
+
+```
+00:00 +0: loading /Users/elmarakbeno/development/tavo/tavo-app/test/motion_system_test.dart
+00:00 +0: motion tokens AppDurations exposes the four duration tokens
+00:00 +1: motion tokens AppCurves exposes the three curve tokens
+00:00 +2: motion tokens AppSprings exposes the three spring tokens
+00:00 +3: Motion isReduced mirrors MediaQuery.disableAnimations
+00:01 +4: Motion adapt collapses the duration to zero under reduced motion
+00:01 +5: Motion springFor returns the no-motion spring under reduced motion
+00:01 +6: MotionTheme of returns the theme extension when one is registered
+00:01 +7: MotionTheme of falls back to the default tokens when none is registered
+00:01 +8: MotionTheme copyWith overrides a single token and lerp blends two themes
+00:01 +9: SpringPress scales down while pressed and springs back on release
+00:01 +10: SpringPress is a no-op under reduced motion
+00:01 +11: SpringPress animates the transform only, never the layout
+00:01 +12: SpringCounter settles on the target inside the hero budget
+00:01 +13: SpringCounter jumps straight to the target under reduced motion
+00:01 +14: SpringReveal reveals the children one after the other
+00:01 +15: SpringReveal shows every child immediately under reduced motion
+00:01 +16: SpringSheet settles on the identity transform
+00:02 +17: SpringSheet is at the final transform immediately under reduced motion
+00:02 +18: shaders the painters degrade to a plain fill without a program
+00:02 +19: shaders the asset loader degrades to null when the program is missing
+00:02 +20: shaders a surface renders through an injected loader
+00:02 +21: disposal every primitive releases its controller when removed
+00:02 +22: All tests passed!
+```
+
+**22 / 22 green.**
+
+### The settle budget is a real guard, not a formality
+
+`SpringCounter` settles inside `AppDurations.hero * 2` (1000 ms of simulated
+time). The measured settle time of every token spring, for a span of `1` and
+for a span of `1250` (the KPI counter), is the same — the tolerance scales
+with the distance the spring travels:
+
+```
+snappy span=1.0 settled at 455 ms
+snappy span=1250.0 settled at 455 ms
+gentle span=1.0 settled at 577 ms
+gentle span=1250.0 settled at 577 ms
+bouncy span=1.0 settled at 770 ms
+bouncy span=1250.0 settled at 770 ms
+```
+
+Proof that the test catches a spring that never settles: with
+`AppSprings.gentle.damping` temporarily changed from `24` to `0.0001`
+(essentially undamped), the same test fails with
+
+```
+The following TestFailure was thrown running a test:
+pumpAndSettle timed out
+  ...
+  test/motion_system_test.dart:383:7
+The test description was:
+  settles on the target inside the hero budget
+```
+
+The damping was restored to `24` immediately afterwards; the file is byte
+identical to the committed version.
+
+### GREEN — the whole Flutter suite
+
+Command: `flutter test`
+
+```
+00:37 +285 -2: /Users/elmarakbeno/development/tavo/tavo-app/test/onboarding_screen_regression_test.dart: (tearDownAll)
+00:37 +285 -2: Some tests failed.
+
+Failing tests:
+  /Users/elmarakbeno/development/tavo/tavo-app/test/dashboard_screen_widget_test.dart: renders the three zones with the payload values
+  /Users/elmarakbeno/development/tavo/tavo-app/test/dashboard_screen_widget_test.dart: the shell callbacks fire from the dashboard
+```
+
+**285 passed, 2 failed.** Both failures belong to the **sibling Task 32
+agent**, which is rebuilding `lib/feature/panel_dashboard/**` in the same
+working tree right now. The cause is a layout overflow in the sibling's own
+widget:
+
+```
+The following assertion was thrown during layout:
+A RenderFlex overflowed by 19 pixels on the bottom.
+
+The relevant error-causing widget was:
+  Column
+  Column:file:///Users/elmarakbeno/development/tavo/tavo-app/lib/feature/panel_dashboard/ui/widgets/kpi_tiles.dart:108:26
+```
+
+Neither failure touches a file of this task. Re-running the suite without the
+sibling's in-flight file is fully green:
+
+```
+$ find test -name "*_test.dart" | grep -v dashboard_screen_widget_test | xargs flutter test
+00:18 +283: /Users/elmarakbeno/development/tavo/tavo-app/test/panel_tables_redesign_test.dart: (tearDownAll)
+00:18 +283: All tests passed!
+```
+
+**283 passed, 0 failed** (the sibling's file holds 2 cases).
+
+> Two earlier full-suite runs during this task read `246 passed / 6 failed`
+> and `285 passed / 3 failed`. Those were compile errors and a missing
+> `OccupancyRing` widget in the sibling's in-flight dashboard code, fixed by
+> the sibling while this task was running. The counts above are the final
+> ones.
+
+### `flutter analyze`
+
+| | issues | attributable to Task 33-A |
+|---|---|---|
+| before this task's files existed | 25 | — |
+| after | 35 | **0** |
+
+The absolute number moved because the sibling Task 32 agent is editing
+`lib/feature/panel_dashboard/**` and `test/panel_dashboard*_test.dart` in the
+same package at the same time (an earlier measurement during this task read
+52, when the sibling's tree was mid-rewrite). The number that matters is the
+per-file breakdown — **zero** issues in:
+
+```
+lib/core/animation/motion.dart
+lib/core/animation/motion_tokens.dart
+lib/core/animation/primitives/spring_press.dart
+lib/core/animation/primitives/spring_reveal.dart
+lib/core/animation/primitives/spring_counter.dart
+lib/core/animation/primitives/spring_sheet.dart
+lib/core/animation/shaders/shader_program_loader.dart
+lib/core/animation/shaders/shader_painters.dart
+lib/core/theme/motion_theme_extension.dart
+test/motion_system_test.dart
+```
+
+### The shaders compile
+
+The three `.frag` files are validated with the same compiler the Flutter
+tool uses (`impellerc`, shipped in the engine artifacts), for every runtime
+stage the tool targets:
+
+```
+$ impellerc --sksl --runtime-stage-metal --runtime-stage-gles --iplr \
+    --sl=gooey.out --spirv=gooey.out.spirv \
+    --input=lib/core/animation/shaders/gooey.frag --input-type=frag \
+    --include=lib/core/animation/shaders --include=$shader_lib
+exit=0
+$ impellerc ... --input=lib/core/animation/shaders/liquid.frag ...
+exit=0
+$ impellerc ... --input=lib/core/animation/shaders/aurora.frag ...
+exit=0
+```
+
+The same three shaders also compile for `--runtime-stage-gles3
+--runtime-stage-vulkan` (exit 0 each). The reflection confirms the uniform
+names the painters address by name:
+
+```
+iTime      vec_size 1  location 0
+uSize      vec_size 2  location 1
+uProgress  vec_size 1  location 2
+```
+
+The `shaders:` block in `pubspec.yaml` is **controller-owned** and was not
+touched by this task:
+
+```yaml
+flutter:
+  shaders:
+    - lib/core/animation/shaders/gooey.frag
+    - lib/core/animation/shaders/liquid.frag
+    - lib/core/animation/shaders/aurora.frag
+```
 
 ## Task 30-D — "Open in Tavo app" on the public menu page
 
@@ -1023,11 +1286,591 @@ to run.
 
 ## Task 31-B — the analytics endpoint
 
-_(pending)_
+Files: `src/validators/analytics-panel.validator.js` (new),
+`src/services/analytics-panel.services.js` (new),
+`src/controllers/analytics-panel.controller.js` (new),
+`src/routes/analytics-panel.route.js` (new),
+`src/routes/restaurant-owner.routes.js` (mount only — 5 lines),
+`tests/unit/analytics-panel.test.js` (new — 29 tests).
+
+Endpoints (both `requirePermission("view_reports")`):
+
+- `GET /v1/api/restaurant-owner/analytics?restaurantId=&from=&to=&range=`
+- `GET /v1/api/restaurant-owner/analytics/live?restaurantId=`
+
+### RED
+
+The test file was written first, then the four implementation files were
+removed and the panel mount reverted, so the suite ran against a tree with
+no analytics code at all. Command:
+
+```
+npm test -- tests/unit/analytics-panel.test.js --runInBand
+```
+
+Result: **1 suite failed — 27 tests failed / 2 passed / 29 total.** Every
+endpoint answer was `404` (the route did not exist) or an empty body.
+
+```text
+FAIL tests/unit/analytics-panel.test.js
+  ● analytics endpoint (Task 31-B) › auth and validation › 403s staff without view_reports on both endpoints
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 403
+    Received: 404
+
+      181 |       const token = viewer.generateToken();
+      182 |       const res = await getAnalytics("", token);
+    > 183 |       expect(res.statusCode).toBe(403);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:183:30)
+
+  ● analytics endpoint (Task 31-B) › auth and validation › 400s an unparseable from/to and a from after to
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 404
+
+      200 |
+      201 |       const badFrom = await getAnalytics("&from=not-a-date", token);
+    > 202 |       expect(badFrom.statusCode).toBe(400);
+          |                                  ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:202:34)
+
+  ● analytics endpoint (Task 31-B) › auth and validation › 400s an unknown range token and 200s every known one
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 404
+
+      215 |       const token = owner.generateToken();
+      216 |       const bad = await getAnalytics("&range=year", token);
+    > 217 |       expect(bad.statusCode).toBe(400);
+          |                             ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:217:30)
+
+  ● analytics endpoint (Task 31-B) › auth and validation › returns the documented top-level shape
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      227 |     it("returns the documented top-level shape", async () => {
+      228 |       const res = await getAnalytics("", owner.generateToken());
+    > 229 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:229:30)
+
+  ● analytics endpoint (Task 31-B) › revenue truth › counts only served/completed orders and keeps gross/net/tax apart
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      306 |
+      307 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 308 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:308:30)
+
+  ● analytics endpoint (Task 31-B) › revenue truth › splits gross (totalPrice) from net (subtotal) and tax
+
+    TypeError: Cannot read properties of undefined (reading 'kpi')
+
+      325 |
+      326 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 327 |       const rev = res.body.data.kpi.revenue;
+          |                                 ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:327:33)
+
+  ● analytics endpoint (Task 31-B) › revenue truth › counts every order (any status) in kpi.orders.total and buckets by status
+
+    TypeError: Cannot read properties of undefined (reading 'kpi')
+
+      337 |
+      338 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 339 |       const orders = res.body.data.kpi.orders;
+          |                                    ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:339:36)
+
+  ● analytics endpoint (Task 31-B) › period comparison › compares against the immediately preceding window of the same length
+
+    TypeError: Cannot read properties of undefined (reading 'comparison')
+
+      377 |
+      378 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 379 |       const cmp = res.body.data.comparison;
+          |                                 ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:379:33)
+
+  ● analytics endpoint (Task 31-B) › period comparison › returns null (never Infinity, never a fake 100%) when previous === 0
+
+    TypeError: Cannot read properties of undefined (reading 'comparison')
+
+      399 |
+      400 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 401 |       const cmp = res.body.data.comparison;
+          |                                 ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:401:33)
+
+  ● analytics endpoint (Task 31-B) › tenant isolation › never leaks restaurant B's ids, totals or item names into A's response
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      438 |
+      439 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 440 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:440:30)
+
+  ● analytics endpoint (Task 31-B) › tenant isolation › scopes EVERY aggregation by restaurantId inside the $match
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      461 |       try {
+      462 |         const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 463 |         expect(res.statusCode).toBe(200);
+          |                                ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:463:32)
+
+  ● analytics endpoint (Task 31-B) › top items › aggregates quantity and lineTotal, sorts by revenue desc, shares sum to ~100
+
+    TypeError: Cannot read properties of undefined (reading 'topItems')
+
+      529 |
+      530 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 531 |       const top = res.body.data.topItems;
+          |                                 ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:531:33)
+
+  ● analytics endpoint (Task 31-B) › occupancy (binding rule) › counts a table with a preparing order as occupied and a served-only table as free
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      557 |
+      558 |       const res = await getLive("", owner.generateToken());
+    > 559 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:559:30)
+
+  ● analytics endpoint (Task 31-B) › occupancy (binding rule) › treats a cancelled order as free and ignores another restaurant's orders
+
+    TypeError: Cannot read properties of undefined (reading 'occupiedTables')
+
+      570 |
+      571 |       const res = await getLive("", owner.generateToken());
+    > 572 |       expect(res.body.data.occupiedTables).toBe(0);
+          |                            ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:572:28)
+
+  ● analytics endpoint (Task 31-B) › empty range › returns zeros and empty maps — never nulls
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      584 |       const emptyTo = new Date("2020-01-02T00:00:00.000Z");
+      585 |       const res = await getAnalytics(`&from=${iso(emptyFrom)}&to=${iso(emptyTo)}`, owner.generateToken());
+    > 586 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:586:30)
+
+  ● analytics endpoint (Task 31-B) › lifecycle-derived metrics › reports avgPrepMinutes and avgTicketMinutes only for stamped rows
+
+    TypeError: Cannot read properties of undefined (reading 'kpi')
+
+      661 |
+      662 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 663 |       expect(res.body.data.kpi.orders.avgPrepMinutes).toBe(20);
+          |                            ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:663:28)
+
+  ● analytics endpoint (Task 31-B) › lifecycle-derived metrics › reports null when no order carries lifecycle timestamps
+
+    TypeError: Cannot read properties of undefined (reading 'kpi')
+
+      669 |
+      670 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 671 |       expect(res.body.data.kpi.orders.avgPrepMinutes).toBeNull();
+          |                            ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:671:28)
+
+  ● analytics endpoint (Task 31-B) › reservations › uses the snake_case `no_show` status and computes the no-show rate
+
+    TypeError: Cannot read properties of undefined (reading 'kpi')
+
+      686 |
+      687 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 688 |       const rsv = res.body.data.kpi.reservations;
+          |                                 ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:688:33)
+
+  ● analytics endpoint (Task 31-B) › live snapshot › returns only the live object
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      704 |     it("returns only the live object", async () => {
+      705 |       const res = await getLive("", owner.generateToken());
+    > 706 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:706:30)
+
+  ● analytics endpoint (Task 31-B) › live snapshot › counts today's revenue, today's orders, the open backlog and the waitlist
+
+    TypeError: Cannot read properties of undefined (reading 'revenueToday')
+
+      752 |
+      753 |       const res = await getLive("", owner.generateToken());
+      754 |       const live = res.body.data;
+    > 755 |       expect(live.revenueToday).toBe(80);
+          |                   ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:754:19)
+
+  ● analytics endpoint (Task 31-B) › live snapshot › stays cheap: one batched distinct, no $unwind, no heavy range aggregation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      770 |       try {
+      771 |         const res = await getLive("", owner.generateToken());
+    > 772 |         expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:772:32)
+
+  ● analytics endpoint (Task 31-B) › alerts › raises a data-driven alert when the open-order backlog grows
+
+    TypeError: Cannot read properties of undefined (reading 'alerts')
+
+      803 |       }
+      804 |       const res = await getAnalytics("", owner.generateToken());
+    > 805 |       const alerts = res.body.data.alerts;
+          |                                    ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:805:36)
+
+  ● analytics endpoint (Task 31-B) › alerts › raises no backlog alert for a calm venue
+
+    TypeError: Cannot read properties of undefined (reading 'alerts')
+
+      818 |     it("raises no backlog alert for a calm venue", async () => {
+      819 |       const res = await getAnalytics("", owner.generateToken());
+    > 820 |       expect(res.body.data.alerts).toEqual([]);
+          |                    ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:820:28)
+
+  ● analytics endpoint (Task 31-B) › trend buckets › buckets the heatmap by weekday 0-6 (0 = Sunday) and by the local hour
+
+    TypeError: Cannot read properties of undefined (reading 'trend')
+
+      839 |
+      840 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 841 |       const heat = res.body.data.trend.heatmap;
+          |                                  ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:841:34)
+
+  ● analytics endpoint (Task 31-B) › trend buckets › buckets the daily trend by the local calendar day
+
+    TypeError: Cannot read properties of undefined (reading 'trend')
+
+      862 |
+      863 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 864 |       const daily = res.body.data.trend.daily;
+          |                                   ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:864:35)
+
+  ● analytics endpoint (Task 31-B) › customers › counts distinct customers and the returning ones
+
+    TypeError: Cannot read properties of undefined (reading 'kpi')
+
+      893 |
+      894 |       const res = await getAnalytics(`&from=${iso(W_FROM)}&to=${iso(W_TO)}`, owner.generateToken());
+    > 895 |       const c = res.body.data.kpi.customers;
+          |                               ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:895:31)
+
+  ● analytics endpoint (Task 31-B) › the panel mount › serves /analytics and /analytics/live through the panel router
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      910 |
+      911 |       const res = await getAnalytics("", owner.generateToken());
+    > 912 |       expect(res.statusCode).toBe(200);
+          |                              ^
+
+      at Object.<anonymous> (tests/unit/analytics-panel.test.js:912:30)
+
+Test Suites: 1 failed, 1 total
+Tests:       27 failed, 2 passed, 29 total
+Snapshots:   0 total
+Time:        4.24 s
+Ran all test suites matching tests/unit/analytics-panel.test.js.
+```
+
+The 2 that passed are the ones the panel router answers on its own
+(`router.use(protect)` rejects an anonymous caller with 401 even for a path
+that does not exist, and a foreign owner is refused with 403 by the venue
+resolution the already-mounted module routers perform).
+
+### A real bug the RED caught
+
+The first implementation returned MongoDB's `%w` weekday verbatim. `%w` is
+**1 (Sunday) … 7 (Saturday)** — NOT the 0–6 the contract asks for — so a
+Thursday landed in bucket `5` instead of `4`. The bucket tests went red:
+
+```text
+  ● analytics endpoint (Task 31-B) › trend buckets › buckets the heatmap by weekday 0-6 (0 = Sunday) and by the local hour
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 4
+    Received: 5
+```
+
+and the fix was `$subtract: [{ $toInt: %w }, 1]`. (A second, related failure
+— `MongoServerError: can't $subtract int from string` — taught that `$toInt`
+has to wrap the `$dateToString` result *inside* the `$subtract`.)
+
+### GREEN
+
+Focused run — `npm test -- tests/unit/analytics-panel.test.js --runInBand`
+(exit code 0):
+
+```text
+Test Suites: 1 passed, 1 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        3.518 s
+Ran all test suites matching tests/unit/analytics-panel.test.js.
+```
+
+Full unit suite — `npm test -- tests/unit --runInBand` (exit code 0):
+
+```text
+Test Suites: 52 passed, 52 total
+Tests:       553 passed, 553 total
+Snapshots:   0 total
+Time:        98.034 s
+Ran all test suites matching tests/unit.
+```
+
+**Counts:** 52 suites / 553 tests, 0 failures. This task contributes
+**1 suite / 29 tests**; the rest of the delta versus the plan baseline
+(48 suites / 490 tests) is sibling Wave-2 work landing in the shared tree.
+
+`--runInBand` was used because the parallel form of the same command is
+unreliable on this machine (dozens of `mongod` instances boot at once and
+suites fail with `Instance failed to start within 10000ms`).
+
+### The contract, as implemented
+
+- **Revenue truth** — only `orderStatus ∈ ['served','completed']` counts.
+  `gross` = Σ `totalPrice`, `net` = Σ `subtotal`, `tax` = Σ `tax`, kept as
+  three separate, labelled numbers. A `cancelled` or `draft` order
+  contributes nothing.
+- **Tenant isolation** — every query scopes the venue *inside* the query
+  (`$match.restaurantId`, `$match.restaurant` for `Review`, the find/count
+  filter). A test spies on `Order/Reservation/PhysicalTable/Review.aggregate`
+  and asserts that **stage 0 of every pipeline** carries the requested
+  venue's id. Nothing is filtered in JavaScript afterwards.
+- **`deltaPct`** — `((current − previous) / previous) × 100`, and **null**
+  when `previous === 0`. Never `Infinity`, never a fake 100 %.
+- **Occupancy** — the binding rule (spec Decision 5), byte-for-byte the same
+  filter Task 28 uses on `GET /tables/:tableTypeId/physical`:
+  `orderStatus: { $nin: ['served','cancelled'] }`. A `preparing` order
+  occupies its table; a `served`/`cancelled` order does not.
+- **`avgPrepMinutes` / `avgTicketMinutes`** — computed **only** from rows
+  that carry a real lifecycle stamp (`acceptedAt` + `readyAt` /
+  `acceptedAt` + `servedAt`). Rows without a stamp are skipped, never
+  counted as zero, and the API reports `null` when no row qualifies.
+- **Empty range** — every numeric is `0` and every map is `{}`
+  (`orders.byStatus`, `reservations.byStatus`), `range.days` is still
+  populated. The three values the spec itself names as nullable
+  (`comparison.*.deltaPct`, `kpi.orders.avgPrepMinutes`,
+  `kpi.avgTicketMinutes`) stay `null` — they are the spec's explicit
+  exception to "zeros, not nulls".
+- **The poll stays cheap** — `getLiveSnapshot` runs six `countDocuments`,
+  one `find`, exactly **one** `Order.distinct` (the batched occupancy rule)
+  and **one** small `$facet` aggregation. No `$unwind`, no range scan. A test
+  spies on `Order.aggregate` / `Order.distinct` and asserts the distinct
+  count is `1`, its filter is the binding rule, and that no pipeline
+  unwinds.
+- **`no_show`** — the reservation enum's own value (snake_case) is what
+  `kpi.reservations.byStatus` uses. The Dart model reads `noShow`; the
+  mapping is the app's job, and the report says so explicitly.
+- **`comparison.previous`** — the immediately preceding window of the same
+  length: `previous.to = from − 1 ms`, `previous.from = previous.to − (to − from)`.
+
+The complete sample JSON response (the one the Flutter task builds its models
+from) is in
+`.superpowers/sdd/2026-10-22-restaurant-intelligence-wave2/task-31-b-report.md`.
 
 ## Task 32 — the dashboard rebuild
 
-_(pending)_
+### RED — the new test file, before a single line of the module existed
+
+`flutter test test/panel_dashboard_v2_test.dart`
+
+The test file was written first (26 cases: the models, the repo, the cubit
+and every widget). It could not even COMPILE: the analytics module —
+`analytics_models.dart`, `analytics_panel_repo.dart`, the cubit, the state
+and the twelve widgets — did not exist. (The output below is the real run;
+the implementation files were moved out of the tree to reproduce it
+byte-for-byte. The full output is 512 lines — the middle is elided.)
+
+```
+00:00 +0: loading /Users/elmarakbeno/development/tavo/tavo-app/test/panel_dashboard_v2_test.dart
+test/panel_dashboard_v2_test.dart:21:8: Error: Error when reading 'lib/feature/panel_dashboard/data/repo/analytics_panel_repo.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/data/repo/analytics_panel_repo.dart';
+       ^
+test/panel_dashboard_v2_test.dart:22:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/logic/dashboard_cubit.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/logic/dashboard_cubit.dart';
+       ^
+test/panel_dashboard_v2_test.dart:23:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/alert_rail.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/alert_rail.dart';
+       ^
+test/panel_dashboard_v2_test.dart:24:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/comparison_row.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/comparison_row.dart';
+       ^
+test/panel_dashboard_v2_test.dart:25:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/date_range_selector.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/date_range_selector.dart';
+       ^
+test/panel_dashboard_v2_test.dart:26:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/kpi_tiles.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/kpi_tiles.dart';
+       ^
+test/panel_dashboard_v2_test.dart:27:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/live_hero_band.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/live_hero_band.dart';
+       ^
+test/panel_dashboard_v2_test.dart:28:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/management_shortcuts.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/management_shortcuts.dart';
+       ^
+test/panel_dashboard_v2_test.dart:29:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/occupancy_ring.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/occupancy_ring.dart';
+       ^
+test/panel_dashboard_v2_test.dart:30:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/order_pipeline.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/order_pipeline.dart';
+       ^
+test/panel_dashboard_v2_test.dart:31:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/orders_volume_chart.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/orders_volume_chart.dart';
+       ^
+test/panel_dashboard_v2_test.dart:32:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/peak_hours_heatmap.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/peak_hours_heatmap.dart';
+       ^
+test/panel_dashboard_v2_test.dart:33:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/revenue_trend_chart.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/revenue_trend_chart.dart';
+       ^
+test/panel_dashboard_v2_test.dart:34:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/section_error_boundary.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/section_error_boundary.dart';
+       ^
+test/panel_dashboard_v2_test.dart:35:8: Error: Error when reading 'lib/feature/panel_dashboard/ui/widgets/top_items_chart.dart': No such file or directory
+import 'package:tavo/feature/panel_dashboard/ui/widgets/top_items_chart.dart';
+       ^
+test/panel_dashboard_v2_test.dart:158:34: Error: Type 'AnalyticsPanelRepo' not found.
+class _FakeAnalyticsRepo extends AnalyticsPanelRepo {
+                                 ^^^^^^^^^^^^^^^^^^
+test/panel_dashboard_v2_test.dart:161:3: Error: Type 'DashboardAnalytics' not found.
+  DashboardAnalytics analytics = DashboardAnalytics.fromJson(sampleAnalytics);
+  ^^^^^^^^^^^^^^^^^^
+  [... 446 further compile errors elided — the whole analytics module did not exist yet ...]
+  test/panel_dashboard_v2_test.dart:726:25: Error: Undefined name 'DashboardAnalytics'.
+        final analytics = DashboardAnalytics.fromJson(sampleAnalytics);
+                          ^^^^^^^^^^^^^^^^^^
+  test/panel_dashboard_v2_test.dart:735:19: Error: Method not found: 'PeakHoursHeatmap'.
+                    PeakHoursHeatmap(cells: analytics.trend.heatmap),
+                    ^^^^^^^^^^^^^^^^
+  test/panel_dashboard_v2_test.dart:736:19: Error: Method not found: 'TopItemsChart'.
+                    TopItemsChart(items: analytics.topItems),
+                    ^^^^^^^^^^^^^
+  .
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  /Users/elmarakbeno/development/tavo/tavo-app/test/panel_dashboard_v2_test.dart: loading /Users/elmarakbeno/development/tavo/tavo-app/test/panel_dashboard_v2_test.dart
+```
+
+### GREEN — focused
+
+`flutter test test/panel_dashboard_v2_test.dart`
+
+```
+00:01 +26: widgets RTL flips the heatmap hours and the bar order
+00:01 +26: (tearDownAll)
+00:01 +26: All tests passed!
+```
+
+### GREEN — the dashboard module's own suites
+
+`flutter test test/panel_dashboard_v2_test.dart test/panel_dashboard_test.dart test/dashboard_screen_widget_test.dart`
+
+```
+00:01 +39: (tearDownAll)
+00:01 +39: All tests passed!
+```
+
+### GREEN — full suite
+
+`flutter test`
+
+```
+00:31 +289: /Users/elmarakbeno/development/tavo/tavo-app/test/panel_tables_redesign_test.dart: (tearDownAll)
+00:31 +289: All tests passed!
+```
+
+Baseline before this task: **240 passed, 0 failed**. After: **289 passed, 0
+failed** (the old dashboard suites were rewritten, not deleted — see the
+report).
+
+### `flutter analyze`
+
+Before: **25 issues**. After: **25 issues** — no new issue, no new
+deprecation.
 
 ## Task 33-B — motion adoption across both app surfaces
 

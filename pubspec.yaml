@@ -109,6 +109,14 @@ flutter:
     - assets/fonts/
     - assets/translations/
 
+  # Wave 2 Task 33-A — the motion system's GLSL shaders. Loaded at runtime
+  # through the injectable ShaderProgramLoader; the painters degrade to a
+  # plain fill when the program is unavailable.
+  shaders:
+    - lib/core/animation/shaders/gooey.frag
+    - lib/core/animation/shaders/liquid.frag
+    - lib/core/animation/shaders/aurora.frag
+
   fonts:
     - family: norsal
       fonts:

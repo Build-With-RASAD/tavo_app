@@ -17,6 +17,7 @@ import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/booking/data/model/booking_model.dart';
+import 'package:tavo/feature/panel_dashboard/data/repo/analytics_panel_repo.dart';
 import 'package:tavo/feature/restaurant_auth/data/repo/restaurant_auth_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_auth_cubit.dart';
 import 'package:tavo/feature/restaurant_auth/ui/logic/restaurant_home_cubit.dart';
@@ -28,13 +29,12 @@ import 'package:tavo/feature/restaurant_panel/data/model/dashboard_stats.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/paged_result.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
 import 'package:tavo/feature/restaurant_panel/data/repo/restaurant_panel_repo.dart';
-import 'package:tavo/feature/restaurant_panel/ui/logic/dashboard_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/orders_screen.dart';
 
 import 'helpers/app_shell.dart';
-import 'helpers/dashboard_extras_helper.dart';
+import 'helpers/dashboard_analytics_helper.dart';
 
 /// Staff auth repo with a recorded, network-free logout.
 class FakeStaffRepo extends RestaurantAuthRepo {
@@ -188,6 +188,7 @@ void main() {
 
   late FakeStaffRepo repo;
   late FakePanelRepo panelRepo;
+  late EmptyAnalyticsRepo analyticsRepo;
   final getIt = GetIt.instance;
 
   setUp(() async {
@@ -204,7 +205,6 @@ void main() {
         () => RestaurantAuthCubit(repo),
       )
       ..registerFactory<RestaurantPanelRepo>(() => panelRepo)
-      ..registerFactory<DashboardCubit>(() => DashboardCubit(panelRepo))
       ..registerFactoryParam<OrdersCubit, String, void>(
         (restaurantId, _) => OrdersCubit(panelRepo, restaurantId: restaurantId),
       )
@@ -212,8 +212,9 @@ void main() {
         (restaurantId, _) =>
             RestaurantHomeCubit(panelRepo, restaurantId: restaurantId),
       );
-    // Wave E2: the shell's dashboard tab builds the extras section too.
-    registerDashboardExtrasForTests();
+    // Wave 2: the shell's dashboard tab reads the analytics endpoints.
+    registerDashboardAnalyticsForTests();
+    analyticsRepo = getIt<AnalyticsPanelRepo>() as EmptyAnalyticsRepo;
   });
 
   tearDown(getIt.reset);
@@ -228,8 +229,8 @@ void main() {
     expect(find.byType(DashboardScreen), findsOneWidget);
     // The dashboard is the default tab and loaded venue #1.
     expect(_selectedIndex(tester), 0);
-    expect(panelRepo.lastRestaurantId, 'r1');
-    expect(panelRepo.dashboardCalls, 1);
+    expect(analyticsRepo.lastRestaurantId, 'r1');
+    expect(analyticsRepo.analyticsCalls, 1);
     // AppBar shows the active venue's display name.
     expect(find.text('Burger Lab'), findsWidgets);
     // The reservations tab is mounted too — IndexedStack keeps every tab
@@ -242,7 +243,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(appShell(StaffShellScreen(restaurants: _venues)));
     await tester.pumpAndSettle();
-    expect(panelRepo.dashboardCalls, 1);
+    expect(analyticsRepo.analyticsCalls, 1);
 
     await tester.tap(find.byKey(const ValueKey('switch_restaurant_button')));
     await tester.pumpAndSettle();
@@ -253,8 +254,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(panelRepo.lastRestaurantId, 'r2');
-    expect(panelRepo.dashboardCalls, 2);
+    expect(analyticsRepo.lastRestaurantId, 'r2');
+    expect(analyticsRepo.analyticsCalls, 2);
     // The switch persists for the next cold start.
     expect(CacheHelper.getActiveRestaurant(), 'r2');
     // AppBar + dashboard header now show venue #2.

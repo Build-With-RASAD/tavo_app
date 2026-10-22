@@ -33,6 +33,46 @@ class WaitlistPanelRepo {
     }
   }
 
+  /// `POST /waitlist` (Task 26 micro-endpoint): staff walk-in creation.
+  /// Returns the created entry (`status: waiting`, server-issued ticket).
+  ///
+  /// It lived in the old dashboard repo until the Wave 2 dashboard rebuild
+  /// deleted that file; the waitlist module owns it now.
+  Future<PanelWaitlistEntry> createWaitlistEntry({
+    required String restaurantId,
+    required int guestsCount,
+    required String name,
+    required String phone,
+    String? email,
+    String? specialRequests,
+  }) async {
+    try {
+      final res = await _api.post(
+        '${ApiConstants.panelBase}/waitlist?restaurantId=$restaurantId',
+        data: {
+          'guestsCount': guestsCount,
+          'customer': {
+            'name': name,
+            'phone': phone,
+            if (email != null && email.isNotEmpty) 'email': email,
+          },
+          if (specialRequests != null && specialRequests.isNotEmpty)
+            'specialRequests': specialRequests,
+        },
+      );
+      final payload = panelPayload(res.data);
+      // 201 envelope is {success, data: {entry}} — accept the bare entry too.
+      final map =
+          payload is Map<String, dynamic> ? payload : <String, dynamic>{};
+      final entryJson = map['entry'] is Map<String, dynamic>
+          ? map['entry'] as Map<String, dynamic>
+          : map;
+      return PanelWaitlistEntry.fromJson(entryJson);
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
   /// `action` ∈ notify|confirm|no-show|cancel; the URL uses the Task 5
   /// hyphenated `no-show` path — callers pass it through unchanged.
   Future<PanelWaitlistEntry> transition(
