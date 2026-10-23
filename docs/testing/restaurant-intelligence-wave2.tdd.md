@@ -1973,3 +1973,48 @@ Covered: `range`, all 11 `live` fields, `kpi.revenue` (gross/net/tax split,
 Verified against the source too: `analytics-panel.services.js` returns the
 live object at `data` top level, which is what
 `LiveSnapshot.fromJson(panelAsPayload(...))` consumes.
+
+## Task 33-B — lane 1 (live-ops dashboard)
+
+The three parallel lanes the controller dispatched died instantly on an
+account usage limit (no files written), so lane 1 was implemented inline.
+
+### RED — `test/motion_dashboard_lane_test.dart`
+
+```
+00:00 +0 -1: the KPI grid reveals its tiles in sequence [E]
+  Expected: exactly 13 matching candidates
+    Actual: Found 12 widgets with type "SpringRevealItem"
+```
+
+(The expectation was the test's own bug — the KPI list has 12 entries — not a
+production defect. Corrected to 12; the assertion that matters, “a reveal
+item per tile”, is unchanged.)
+
+### GREEN — the new suite
+
+```
+00:01 +7: (tearDownAll)
+00:01 +7: All tests passed!
+```
+
+Proves: the KPI grid (12), the shortcut grid (5) and the pipeline rows each
+get their own staggered `SpringRevealItem`; the live revenue is a
+`SpringCounter`; and under `disableAnimations` the values are final on the
+**first** frame with no lingering `Opacity` — motion never delays a number.
+
+### GREEN — full suite
+
+```
+00:36 +319: (tearDownAll)
+00:36 +319: All tests passed!
+```
+
+Baseline 312 → **319** (+7). `flutter analyze`: **25 → 25** (delta 0).
+
+### Foundation change
+
+`SpringRevealItem` is now public: `SpringReveal` lays children out in a
+`Column`, which a `GridView`, a `Row` or a single list cell cannot use. It is
+a thin wrapper over the existing private item, so the reduced-motion and
+“opacity + transform only” behaviour is shared, not re-implemented.
