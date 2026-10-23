@@ -2,6 +2,7 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:tavo/core/animation/primitives/spring_reveal.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/dashboard_format.dart';
@@ -52,65 +53,73 @@ class OrderPipeline extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final status in statuses)
-          Padding(
-            padding: EdgeInsets.only(bottom: 8.h),
-            child: InkWell(
-              key: ValueKey('dash_pipeline_$status'),
-              onTap: onOpenOrders == null ? null : () => onOpenOrders!(status),
-              borderRadius: BorderRadius.circular(10.r),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.h),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 78.w,
-                      child: Text(
-                        status.tr(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyles.font12DarkGray400Weight(context),
-                      ),
-                    ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6.r),
-                        child: Stack(
-                          children: [
-                            Container(
-                              height: 10.h,
-                              color: ColorsManager.grey100,
-                            ),
-                            FractionallySizedBox(
-                              widthFactor: _share(ordersByStatus[status] ?? 0, peak),
-                              child: Container(
-                                height: 10.h,
-                                decoration: BoxDecoration(
-                                  color: _colorFor(status),
-                                  borderRadius: BorderRadius.circular(6.r),
-                                ),
-                              ),
-                            ),
-                          ],
+        for (final (index, status) in statuses.indexed)
+          SpringRevealItem(
+            index: index,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: InkWell(
+                key: ValueKey('dash_pipeline_$status'),
+                onTap: onOpenOrders == null
+                    ? null
+                    : () => onOpenOrders!(status),
+                borderRadius: BorderRadius.circular(10.r),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4.h),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 78.w,
+                        child: Text(
+                          status.tr(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyles.font12DarkGray400Weight(context),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 8.w),
-                    SizedBox(
-                      width: 34.w,
-                      child: Text(
-                        formatCount(ordersByStatus[status] ?? 0),
-                        textAlign: TextAlign.end,
-                        style: TextStyles.font12Black500Weight(context),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6.r),
+                          child: Stack(
+                            children: [
+                              Container(
+                                height: 10.h,
+                                color: ColorsManager.grey100,
+                              ),
+                              FractionallySizedBox(
+                                widthFactor: _share(
+                                  ordersByStatus[status] ?? 0,
+                                  peak,
+                                ),
+                                child: Container(
+                                  height: 10.h,
+                                  decoration: BoxDecoration(
+                                    color: _colorFor(status),
+                                    borderRadius: BorderRadius.circular(6.r),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 16.r,
-                      color: ColorsManager.darkGray300,
-                    ),
-                  ],
+                      SizedBox(width: 8.w),
+                      SizedBox(
+                        width: 34.w,
+                        child: Text(
+                          formatCount(ordersByStatus[status] ?? 0),
+                          textAlign: TextAlign.end,
+                          style: TextStyles.font12Black500Weight(context),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 16.r,
+                        color: ColorsManager.darkGray300,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -128,13 +137,13 @@ class OrderPipeline extends StatelessWidget {
   }
 
   static Color _colorFor(String status) => switch (status) {
-        'pending' => ColorsManager.secondary500,
-        'confirmed' => ColorsManager.primary300,
-        'preparing' => ColorsManager.primary500,
-        'ready' => ColorsManager.teal,
-        'cancelled' => ColorsManager.errorColor,
-        _ => ColorsManager.success500,
-      };
+    'pending' => ColorsManager.secondary500,
+    'confirmed' => ColorsManager.primary300,
+    'preparing' => ColorsManager.primary500,
+    'ready' => ColorsManager.teal,
+    'cancelled' => ColorsManager.errorColor,
+    _ => ColorsManager.success500,
+  };
 }
 
 class _EmptyPipeline extends StatelessWidget {

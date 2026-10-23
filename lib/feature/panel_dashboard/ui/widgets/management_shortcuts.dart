@@ -2,6 +2,7 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:tavo/core/animation/primitives/spring_reveal.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 
@@ -54,33 +55,36 @@ class ManagementShortcuts extends StatelessWidget {
       crossAxisSpacing: 10.w,
       childAspectRatio: 1.05,
       children: [
-        for (final tile in _tiles)
-          InkWell(
-            key: ValueKey('dash_shortcut_${tile.id}'),
-            onTap: onOpenHub == null ? null : () => onOpenHub!(tile.id),
-            borderRadius: BorderRadius.circular(14.r),
-            child: Container(
-              decoration: BoxDecoration(
-                color: ColorsManager.white,
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(color: ColorsManager.grey100),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(tile.icon, size: 22.r, color: ColorsManager.primary500),
-                  SizedBox(height: 6.h),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w),
-                    child: Text(
-                      tile.labelKey.tr(),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyles.font10DarkGray400Weight(context),
+        for (final (index, tile) in _tiles.indexed)
+          SpringRevealItem(
+            index: index,
+            child: InkWell(
+              key: ValueKey('dash_shortcut_${tile.id}'),
+              onTap: onOpenHub == null ? null : () => onOpenHub!(tile.id),
+              borderRadius: BorderRadius.circular(14.r),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: ColorsManager.white,
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(color: ColorsManager.grey100),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(tile.icon, size: 22.r, color: ColorsManager.primary500),
+                    SizedBox(height: 6.h),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4.w),
+                      child: Text(
+                        tile.labelKey.tr(),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyles.font10DarkGray400Weight(context),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

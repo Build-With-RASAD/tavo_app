@@ -55,6 +55,52 @@ class SpringReveal extends StatelessWidget {
   }
 }
 
+/// One item of a [SpringReveal], usable on its own.
+///
+/// [SpringReveal] lays its children out in a `Column`; a grid, a row or a
+/// specific cell cannot use that. Wrapping a single child in
+/// [SpringRevealItem] gives it the same fade + slide entrance, staggered by
+/// [index] — so a `GridView`, a `Row` or a list row can enter in sequence.
+///
+/// Only opacity and transform animate, and under reduced motion the child is
+/// shown immediately at its final position.
+class SpringRevealItem extends StatelessWidget {
+  /// Creates one staggered reveal item.
+  const SpringRevealItem({
+    super.key,
+    required this.index,
+    required this.child,
+    this.itemDelay = const Duration(milliseconds: 60),
+    this.beginOffset = const Offset(0, 0.08),
+    this.spring,
+  });
+
+  /// Position in the sequence — item `n` waits `n × [itemDelay]`.
+  final int index;
+
+  /// The child to reveal.
+  final Widget child;
+
+  /// The delay between two consecutive items.
+  final Duration itemDelay;
+
+  /// Where the child starts from, as a fraction of its own size.
+  final Offset beginOffset;
+
+  /// Overrides the reveal spring of the [MotionTheme].
+  final SpringDescription? spring;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SpringRevealItem(
+      delay: itemDelay * index,
+      beginOffset: beginOffset,
+      spring: spring,
+      child: child,
+    );
+  }
+}
+
 class _SpringRevealItem extends StatefulWidget {
   const _SpringRevealItem({
     required this.child,
@@ -71,7 +117,6 @@ class _SpringRevealItem extends StatefulWidget {
   @override
   State<_SpringRevealItem> createState() => _SpringRevealItemState();
 }
-
 class _SpringRevealItemState extends State<_SpringRevealItem>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;

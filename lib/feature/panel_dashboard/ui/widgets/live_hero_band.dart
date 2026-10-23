@@ -2,6 +2,8 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:tavo/core/animation/primitives/spring_counter.dart';
+import 'package:tavo/core/animation/primitives/spring_reveal.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
@@ -60,7 +62,6 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
   @override
   Widget build(BuildContext context) {
     final live = widget.live;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Container(
       width: double.infinity,
@@ -92,9 +93,6 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
               Expanded(
                 child: _CountUp(
                   value: live.revenueToday,
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 700),
                   builder: (value) => Text(
                     formatMoney(value),
                     maxLines: 1,
@@ -120,40 +118,47 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
           ),
           SizedBox(height: 12.h),
           _Sparkline(
-            values: [
-              for (final point in widget.sparkline) point.revenueGross,
-            ],
+            values: [for (final point in widget.sparkline) point.revenueGross],
           ),
           SizedBox(height: 14.h),
           Row(
             children: [
               Expanded(
-                child: _LiveTile(
-                  keyId: 'dash_live_open_orders',
-                  label: 'dash_open_orders'.tr(),
-                  value: formatCount(live.openOrders),
-                  icon: Icons.receipt_long_outlined,
-                  onTap: widget.onOpenOrders,
+                child: SpringRevealItem(
+                  index: 0,
+                  child: _LiveTile(
+                    keyId: 'dash_live_open_orders',
+                    label: 'dash_open_orders'.tr(),
+                    value: formatCount(live.openOrders),
+                    icon: Icons.receipt_long_outlined,
+                    onTap: widget.onOpenOrders,
+                  ),
                 ),
               ),
               SizedBox(width: 8.w),
               Expanded(
-                child: _LiveTile(
-                  keyId: 'dash_live_occupancy',
-                  label: 'dash_occupancy'.tr(),
-                  value: formatPercent(live.occupancyPct),
-                  icon: Icons.table_chart_outlined,
-                  onTap: widget.onOpenTables,
+                child: SpringRevealItem(
+                  index: 1,
+                  child: _LiveTile(
+                    keyId: 'dash_live_occupancy',
+                    label: 'dash_occupancy'.tr(),
+                    value: formatPercent(live.occupancyPct),
+                    icon: Icons.table_chart_outlined,
+                    onTap: widget.onOpenTables,
+                  ),
                 ),
               ),
               SizedBox(width: 8.w),
               Expanded(
-                child: _LiveTile(
-                  keyId: 'dash_live_waitlist',
-                  label: 'dash_waitlist_count'.tr(),
-                  value: formatCount(live.waitlistCount),
-                  icon: Icons.queue_music_outlined,
-                  onTap: widget.onOpenWaitlist,
+                child: SpringRevealItem(
+                  index: 2,
+                  child: _LiveTile(
+                    keyId: 'dash_live_waitlist',
+                    label: 'dash_waitlist_count'.tr(),
+                    value: formatCount(live.waitlistCount),
+                    icon: Icons.queue_music_outlined,
+                    onTap: widget.onOpenWaitlist,
+                  ),
                 ),
               ),
             ],
@@ -189,25 +194,22 @@ class _LivePulse extends StatelessWidget {
   }
 }
 
-/// The headline number: it counts up to its new value.
+/// The headline number: it springs up to its new value.
+///
+/// Wraps the shared [SpringCounter] so the live band uses the app's motion
+/// tokens instead of a hand-picked tween, and so the platform's reduced-motion
+/// switch is honoured in exactly one place.
 class _CountUp extends StatelessWidget {
-  const _CountUp({
-    required this.value,
-    required this.duration,
-    required this.builder,
-  });
+  const _CountUp({required this.value, required this.builder});
 
   final double value;
-  final Duration duration;
   final Widget Function(double value) builder;
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0, end: value),
-      duration: duration,
-      curve: Curves.easeOutCubic,
-      builder: (context, animated, _) => builder(animated),
+    return SpringCounter(
+      value: value,
+      builder: (context, animated) => builder(animated),
     );
   }
 }
@@ -225,8 +227,8 @@ class _DeltaChip extends StatelessWidget {
     final color = flat
         ? ColorsManager.white
         : up
-            ? ColorsManager.success400
-            : ColorsManager.errorColor;
+        ? ColorsManager.success400
+        : ColorsManager.errorColor;
     return Container(
       key: const ValueKey('dash_live_delta'),
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
@@ -241,17 +243,17 @@ class _DeltaChip extends StatelessWidget {
             flat
                 ? Icons.remove
                 : up
-                    ? Icons.arrow_upward
-                    : Icons.arrow_downward,
+                ? Icons.arrow_upward
+                : Icons.arrow_downward,
             size: 12.r,
             color: color,
           ),
           SizedBox(width: 2.w),
           Text(
             formatDelta(deltaPct),
-            style: TextStyles.font12White500Weight(context).copyWith(
-              color: color,
-            ),
+            style: TextStyles.font12White500Weight(
+              context,
+            ).copyWith(color: color),
           ),
         ],
       ),
@@ -335,9 +337,7 @@ class _Sparkline extends StatelessWidget {
     return SizedBox(
       height: 28.h,
       width: double.infinity,
-      child: CustomPaint(
-        painter: _SparklinePainter(values),
-      ),
+      child: CustomPaint(painter: _SparklinePainter(values)),
     );
   }
 }

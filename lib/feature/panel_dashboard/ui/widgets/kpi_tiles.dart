@@ -2,6 +2,7 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:tavo/core/animation/primitives/spring_reveal.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
@@ -92,40 +93,43 @@ class KpiTiles extends StatelessWidget {
       crossAxisSpacing: 10.w,
       childAspectRatio: 2.4,
       children: [
-        for (final tile in tiles)
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-            decoration: BoxDecoration(
-              color: ColorsManager.white,
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: ColorsManager.grey100),
-            ),
-            child: Row(
-              children: [
-                Icon(tile.icon, size: 18.r, color: ColorsManager.primary500),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        tile.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyles.font10DarkGray400Weight(context),
-                      ),
-                      SizedBox(height: 2.h),
-                      Text(
-                        tile.value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyles.font14Black500Weight(context),
-                      ),
-                    ],
+        for (final (index, tile) in tiles.indexed)
+          SpringRevealItem(
+            index: index,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: ColorsManager.white,
+                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(color: ColorsManager.grey100),
+              ),
+              child: Row(
+                children: [
+                  Icon(tile.icon, size: 18.r, color: ColorsManager.primary500),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          tile.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyles.font10DarkGray400Weight(context),
+                        ),
+                        SizedBox(height: 2.h),
+                        Text(
+                          tile.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyles.font14Black500Weight(context),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
       ],
