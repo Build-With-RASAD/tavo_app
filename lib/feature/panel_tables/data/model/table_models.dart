@@ -1,10 +1,39 @@
 // lib/feature/panel_tables/data/model/table_models.dart
+//
+// Tolerant decoding: the panel API populates references and sends some labels
+// as `{ar, en}` maps. A hard cast crashed the tables screen with
+// "type 'Map<String, dynamic>' is not a subtype of type 'String'".
+String _text(Object? value) {
+  if (value == null) return '';
+  if (value is Map) {
+    return (value['_id'] ?? value['id'] ?? value['code'] ?? '').toString();
+  }
+  return value.toString();
+}
+
+String _localized(Object? value) {
+  if (value == null) return '';
+  if (value is String) return value;
+  if (value is! Map) return value.toString();
+  return (value['ar'] ?? value['en'] ?? value['name'] ?? '').toString();
+}
+
+int _int(Object? value) => value is num
+    ? value.toInt()
+    : int.tryParse('${value ?? ''}') ?? 0;
+
+double? _doubleOrNull(Object? value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse('${value ?? ''}');
+}
+
 class PanelTableType {
-  const PanelTableType(
-      {required this.id,
-      required this.label,
-      this.seatsPerTable = 0,
-      this.tablesCount = 0});
+  const PanelTableType({
+    required this.id,
+    required this.label,
+    this.seatsPerTable = 0,
+    this.tablesCount = 0,
+  });
 
   final String id;
   final String label;
@@ -13,10 +42,10 @@ class PanelTableType {
 
   factory PanelTableType.fromJson(Map<String, dynamic> json) =>
       PanelTableType(
-        id: json['_id'] as String? ?? '',
-        label: json['label'] as String? ?? '',
-        seatsPerTable: (json['seatsPerTable'] as num?)?.toInt() ?? 0,
-        tablesCount: (json['tablesCount'] as num?)?.toInt() ?? 0,
+        id: _text(json['_id'] ?? json['id']),
+        label: _localized(json['label']),
+        seatsPerTable: _int(json['seatsPerTable']),
+        tablesCount: _int(json['tablesCount']),
       );
 }
 
@@ -84,15 +113,15 @@ class PanelPhysicalTable {
     final typeId = json['tableTypeId'];
     final rawOccupied = json['occupied'];
     return PanelPhysicalTable(
-      id: json['_id'] as String? ?? '',
-      tableTypeId: typeId is Map ? typeId['_id'] as String? ?? '' : '$typeId',
-      code: json['code'] as String? ?? '',
-      seats: (json['seats'] as num?)?.toInt() ?? 0,
-      status: json['status'] as String? ?? 'available',
-      zone: json['zone'] as String?,
+      id: _text(json['_id'] ?? json['id']),
+      tableTypeId: typeId is Map ? _text(typeId['_id']) : _text(typeId),
+      code: _text(json['code']),
+      seats: _int(json['seats']),
+      status: _text(json['status']).isEmpty ? 'available' : _text(json['status']),
+      zone: _localized(json['zone']).isEmpty ? null : _localized(json['zone']),
       occupied: rawOccupied is bool ? rawOccupied : null,
-      x: pos is Map ? (pos['x'] as num?)?.toDouble() : null,
-      y: pos is Map ? (pos['y'] as num?)?.toDouble() : null,
+      x: pos is Map ? _doubleOrNull(pos['x']) : null,
+      y: pos is Map ? _doubleOrNull(pos['y']) : null,
     );
   }
 }

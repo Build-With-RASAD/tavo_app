@@ -1,7 +1,9 @@
 // lib/feature/restaurant_auth/ui/screens/staff_shell_screen.dart
 
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:tavo/core/cache/cache_helper.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/navigation/app_navigator.dart';
@@ -13,6 +15,7 @@ import 'package:tavo/feature/restaurant_auth/ui/more/shell_defaults.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/reservations_tab.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/waitlist_tab.dart';
 import 'package:tavo/feature/restaurant_auth/ui/screens/restaurant_login_screen.dart';
+import 'package:tavo/feature/restaurant_panel/ui/logic/panel_alerts_controller.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/dashboard_screen.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/orders_screen.dart';
 
@@ -46,6 +49,9 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
   /// mounted — the shell is the only thing that sees both requests.
   String? _ordersFilter;
 
+  /// Badge counts and the new-order chime. Rebuilt per active venue.
+  PanelAlertsController? _alerts;
+
   @override
   void initState() {
     super.initState();
@@ -64,12 +70,50 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
           ? widget.restaurants.first.restaurantId
           : '';
     }
+    _startAlerts();
   }
 
   @override
   void dispose() {
     staffOpenOrders = null;
+    _alerts?.dispose();
     super.dispose();
+  }
+
+  void _startAlerts() {
+    _alerts?.dispose();
+    _alerts = null;
+    if (_activeId.isEmpty) return;
+    _alerts = PanelAlertsController(
+      restaurantId: _activeId,
+      onNewOrders: _announceNewOrders,
+    )..start();
+  }
+
+  void _announceNewOrders() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('new_order_alert'.tr()),
+        action: SnackBarAction(
+          label: 'orders'.tr(),
+          onPressed: () => _openOrdersTab('pending'),
+        ),
+      ),
+    );
+  }
+
+  /// Wraps [icon] in a numeric badge while [count] is positive.
+  Widget _badged(ValueListenable<int>? count, Widget icon) {
+    if (count == null) return icon;
+    return ValueListenableBuilder<int>(
+      valueListenable: count,
+      builder: (_, value, child) =>
+          value > 0 ? Badge(label: Text('$value'), child: child!) : child!,
+      child: icon,
+    );
   }
 
   /// Closes a screen pushed from the More hub and shows the Orders tab.
@@ -119,6 +163,7 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
       // A filter belongs to the venue the user picked it in.
       _ordersFilter = null;
     });
+    _startAlerts();
     // Fire-and-forget: SharedPreferences updates its cache synchronously, so
     // a cold start right after the tap still reads the new venue.
     CacheHelper.setActiveRestaurant(restaurantId);
@@ -217,18 +262,24 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
         onDestinationSelected: (index) => setState(() => _tabIndex = index),
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.dashboard_outlined),
-            selectedIcon: const Icon(Icons.dashboard),
+            icon: const Icon(Iconsax.category),
+            selectedIcon: const Icon(Iconsax.category_2),
             label: 'dashboard'.tr(),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.receipt_long_outlined),
-            selectedIcon: const Icon(Icons.receipt_long),
+            icon: _badged(
+              _alerts?.pendingOrders,
+              const Icon(Iconsax.receipt_2),
+            ),
+            selectedIcon: _badged(
+              _alerts?.pendingOrders,
+              const Icon(Iconsax.receipt_text),
+            ),
             label: 'orders'.tr(),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.event_seat_outlined),
-            selectedIcon: const Icon(Icons.event_seat),
+            icon: const Icon(Iconsax.calendar_1),
+            selectedIcon: const Icon(Iconsax.calendar_tick),
             label: 'my_reservations'.tr(),
           ),
           NavigationDestination(
@@ -237,20 +288,26 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
               builder: (_, count, child) => count > 0
                   ? Badge(label: Text('$count'), child: child!)
                   : child!,
-              child: const Icon(Icons.queue_music_outlined),
+              child: const Icon(Iconsax.clock),
             ),
             selectedIcon: ValueListenableBuilder<int>(
               valueListenable: waitlistBadgeCount,
               builder: (_, count, child) => count > 0
                   ? Badge(label: Text('$count'), child: child!)
                   : child!,
-              child: const Icon(Icons.queue_music),
+              child: const Icon(Iconsax.clock),
             ),
             label: 'waitlist'.tr(),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.grid_view_outlined),
-            selectedIcon: const Icon(Icons.grid_view),
+            icon: _badged(
+              _alerts?.newFeedback,
+              const Icon(Iconsax.element_3),
+            ),
+            selectedIcon: _badged(
+              _alerts?.newFeedback,
+              const Icon(Iconsax.element_4),
+            ),
             label: 'more'.tr(),
           ),
         ],

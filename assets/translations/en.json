@@ -555,5 +555,6 @@
   "dash_shortcut_reviews": "Reviews",
   "dash_shortcut_settings": "Settings",
   "dash_field_email": "Email (optional)",
-  "kitchen_display": "Kitchen display"
+  "kitchen_display": "Kitchen display",
+  "new_order_alert": "New order received"
 }
