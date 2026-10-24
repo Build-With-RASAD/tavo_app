@@ -8,6 +8,7 @@ import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/dashboard_format.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The "Now" band: what is happening in the venue RIGHT NOW.
 ///
@@ -130,7 +131,7 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
                     keyId: 'dash_live_open_orders',
                     label: 'dash_open_orders'.tr(),
                     value: formatCount(live.openOrders),
-                    icon: Icons.receipt_long_outlined,
+                    icon: Iconsax.receipt_2,
                     onTap: widget.onOpenOrders,
                   ),
                 ),
@@ -143,7 +144,7 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
                     keyId: 'dash_live_occupancy',
                     label: 'dash_occupancy'.tr(),
                     value: formatPercent(live.occupancyPct),
-                    icon: Icons.table_chart_outlined,
+                    icon: Iconsax.grid_4,
                     onTap: widget.onOpenTables,
                   ),
                 ),
@@ -156,7 +157,7 @@ class _LiveHeroBandState extends State<LiveHeroBand> {
                     keyId: 'dash_live_waitlist',
                     label: 'dash_waitlist_count'.tr(),
                     value: formatCount(live.waitlistCount),
-                    icon: Icons.queue_music_outlined,
+                    icon: Iconsax.timer_1,
                     onTap: widget.onOpenWaitlist,
                   ),
                 ),
@@ -241,10 +242,10 @@ class _DeltaChip extends StatelessWidget {
         children: [
           Icon(
             flat
-                ? Icons.remove
+                ? Iconsax.minus
                 : up
-                ? Icons.arrow_upward
-                : Icons.arrow_downward,
+                ? Iconsax.arrow_up_2
+                : Iconsax.arrow_down_2,
             size: 12.r,
             color: color,
           ),

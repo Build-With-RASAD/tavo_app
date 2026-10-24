@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// One dashboard section behind its own error wall (spec decision 14).
 ///
@@ -102,7 +103,7 @@ class _ErrorCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.error_outline, size: 18.r, color: errorColor),
+              Icon(Iconsax.info_circle, size: 18.r, color: errorColor),
               SizedBox(width: 8.w),
               Expanded(
                 child: Text(
@@ -126,7 +127,7 @@ class _ErrorCard extends StatelessWidget {
               child: TextButton.icon(
                 key: const ValueKey('dash_section_retry'),
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 16),
+                icon: const Icon(Iconsax.refresh, size: 16),
                 label: Text('dash_section_retry'.tr()),
               ),
             ),

@@ -31,6 +31,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/panel_tables/data/model/table_models.dart';
 import 'package:tavo/feature/panel_tables/data/repo/tables_panel_repo.dart';
 import 'package:tavo/feature/panel_tables/ui/logic/tables_panel_cubit.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Canvas interaction modes (spec decision 1).
 enum _CanvasMode { view, edit }
@@ -138,7 +139,7 @@ class _TablesScreenState extends State<TablesScreen> {
             child: ErrorStateView(message: state.message, onRetry: cubit.load),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Iconsax.refresh),
             onPressed: cubit.load,
           ),
           SizedBox(height: 8.h),
@@ -148,7 +149,7 @@ class _TablesScreenState extends State<TablesScreen> {
     if (state is TablesPanelLoaded) {
       if (state.types.isEmpty) {
         return EmptyStateView(
-          icon: Icons.table_chart_outlined,
+          icon: Iconsax.grid_4,
           title: 'empty_tables_title'.tr(),
           message: 'empty_tables_message'.tr(),
           onRetry: cubit.load,
@@ -263,7 +264,7 @@ class _TablesScreenState extends State<TablesScreen> {
         children: [
           OutlinedButton.icon(
             key: const Key('add_table'),
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Iconsax.add, size: 18),
             label: Text('tbl_add_table'.tr()),
             onPressed: () => _openAddForm(cubit, state),
           ),
@@ -442,7 +443,7 @@ class _TablesScreenState extends State<TablesScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.check,
+                          Iconsax.check,
                           size: 9,
                           color: ColorsManager.white,
                         ),
@@ -878,7 +879,7 @@ class _TableDetailSheetState extends State<_TableDetailSheet> {
                     SizedBox(height: 8.h),
                     OutlinedButton.icon(
                       key: const Key('sheet_open_orders'),
-                      icon: const Icon(Icons.receipt_long, size: 18),
+                      icon: const Icon(Iconsax.receipt_2, size: 18),
                       label: Text('tbl_open_orders'.tr()),
                       onPressed: _openOrders,
                     ),
@@ -911,19 +912,19 @@ class _TableDetailSheetState extends State<_TableDetailSheet> {
                     children: [
                       OutlinedButton.icon(
                         key: const Key('sheet_edit'),
-                        icon: const Icon(Icons.edit, size: 18),
+                        icon: const Icon(Iconsax.edit_2, size: 18),
                         label: Text('tbl_edit'.tr()),
                         onPressed: () => setState(() => _editing = true),
                       ),
                       OutlinedButton.icon(
                         key: const Key('sheet_toggle'),
-                        icon: const Icon(Icons.swap_horiz, size: 18),
+                        icon: const Icon(Iconsax.arrow_swap_horizontal, size: 18),
                         label: Text('tbl_toggle_status'.tr()),
                         onPressed: () => widget.cubit.toggleStatus(table),
                       ),
                       OutlinedButton.icon(
                         key: const Key('sheet_delete'),
-                        icon: const Icon(Icons.delete_outline, size: 18),
+                        icon: const Icon(Iconsax.trash, size: 18),
                         label: Text('tbl_delete'.tr()),
                         // Client-side gate for the known blocker (an open
                         // order). The server's 409 stays authoritative — a

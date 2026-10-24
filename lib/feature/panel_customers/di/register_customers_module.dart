@@ -1,10 +1,10 @@
 // lib/feature/panel_customers/di/register_customers_module.dart
-import 'package:flutter/material.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/panel_customers/data/repo/customers_panel_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/customers_screen.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Reported to the controller as the service_locator.dart one-liner pair:
 ///   import 'package:tavo/feature/panel_customers/di/register_customers_module.dart';
@@ -22,7 +22,7 @@ void registerCustomersModule() {
   MoreHubRegistry.register(MoreHubEntry(
     id: 'customers',
     labelKey: 'customers',
-    icon: Icons.people_outlined,
+    icon: Iconsax.people,
     builder: (restaurantId, venue) =>
         CustomersScreen(restaurantId: restaurantId, venue: venue),
   ));

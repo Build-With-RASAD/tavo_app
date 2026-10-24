@@ -10,6 +10,7 @@ import 'package:tavo/core/network/api_service.dart';
 import '../../../restaurant_panel/data/model/panel_order.dart';
 import '../../../restaurant_panel/data/repo/restaurant_panel_repo.dart';
 import '../logic/kitchen_cubit.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 class KitchenScreen extends StatefulWidget {
   const KitchenScreen({super.key, required this.restaurantId, this.cubit});
@@ -80,7 +81,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: _cubit.load,
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const Icon(Iconsax.refresh),
                   label: Text(_l('إعادة المحاولة', 'Try again')),
                 ),
               ],
@@ -102,7 +103,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
             IconButton(
               tooltip: _l('تحديث', 'Refresh'),
               onPressed: _cubit.load,
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const Icon(Iconsax.refresh),
             ),
           ],
           bottom: TabBar(
@@ -241,7 +242,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
                           height: 14,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.arrow_forward_rounded, size: 18),
+                      : const Icon(Iconsax.arrow_right_2, size: 18),
                   label: Text(_nextLabel(order.orderStatus)),
                 ),
               ],

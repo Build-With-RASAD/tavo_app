@@ -7,6 +7,7 @@ import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 class ContactScreen extends StatelessWidget {
   const ContactScreen({super.key, required this.restaurantId, required this.venue});
@@ -19,7 +20,7 @@ class ContactScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('contact_qr'.tr())),
       body: EmptyStateView(
-        icon: Icons.qr_code,
+        icon: Iconsax.scan,
         title: 'hub_empty'.tr(),
       ),
     );

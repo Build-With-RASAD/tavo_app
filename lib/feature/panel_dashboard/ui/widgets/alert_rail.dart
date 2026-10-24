@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The actionable alert rail: what needs a decision right now.
 ///
@@ -37,7 +38,7 @@ class AlertRail extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              Icons.check_circle_outline,
+              Iconsax.tick_circle,
               size: 18.r,
               color: ColorsManager.success500,
             ),
@@ -108,7 +109,7 @@ class AlertRail extends StatelessWidget {
                       ),
                     ),
                     Icon(
-                      Icons.chevron_right,
+                      Iconsax.arrow_right_2,
                       size: 18.r,
                       color: ColorsManager.darkGray300,
                     ),
@@ -130,17 +131,17 @@ class AlertRail extends StatelessWidget {
   static IconData _icon(AnalyticsAlert alert) {
     switch (alert.type) {
       case 'stock':
-        return Icons.inventory_2_outlined;
+        return Iconsax.box;
       case 'waitlist':
-        return Icons.queue_music_outlined;
+        return Iconsax.timer_1;
       case 'orders':
-        return Icons.receipt_long_outlined;
+        return Iconsax.receipt_2;
       case 'reservations':
-        return Icons.event_seat_outlined;
+        return Iconsax.ticket;
       case 'tables':
-        return Icons.table_chart_outlined;
+        return Iconsax.grid_4;
       default:
-        return Icons.notifications_none_outlined;
+        return Iconsax.notification;
     }
   }
 }

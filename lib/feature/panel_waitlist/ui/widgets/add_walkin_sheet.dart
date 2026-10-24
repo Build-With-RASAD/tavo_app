@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_waitlist/ui/logic/waitlist_panel_cubit.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The walk-in sheet: name, phone and party size, plus an optional e-mail
 /// and note.
@@ -75,7 +76,7 @@ class _AddWalkinSheetState extends State<AddWalkinSheet> {
                 Row(
                   children: [
                     Icon(
-                      Icons.person_add_alt_1_outlined,
+                      Iconsax.user_add,
                       size: 20.r,
                       color: ColorsManager.primary500,
                     ),
@@ -148,7 +149,7 @@ class _AddWalkinSheetState extends State<AddWalkinSheet> {
                   Row(
                     children: [
                       Icon(
-                        Icons.error_outline,
+                        Iconsax.info_circle,
                         size: 16.r,
                         color: Theme.of(context).colorScheme.error,
                       ),

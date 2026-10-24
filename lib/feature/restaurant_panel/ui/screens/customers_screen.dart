@@ -16,6 +16,7 @@ import 'package:tavo/feature/panel_customers/data/repo/customers_panel_repo.dart
 import 'package:tavo/feature/panel_customers/ui/logic/customer_detail_cubit.dart';
 import 'package:tavo/feature/panel_customers/ui/logic/customers_panel_cubit.dart';
 import 'package:tavo/feature/panel_customers/ui/screens/customer_detail_screen.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Staff panel customers CRM: search field over the paged customer list;
 /// row tap loads the profile + histories, then pushes the detail screen.
@@ -62,7 +63,7 @@ class CustomersScreen extends StatelessWidget {
             child: ErrorStateView(message: state.message, onRetry: cubit.load),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Iconsax.refresh),
             onPressed: cubit.load,
           ),
           SizedBox(height: 8.h),
@@ -102,7 +103,7 @@ class CustomersScreen extends StatelessWidget {
             onSubmitted: cubit.search,
             decoration: InputDecoration(
               labelText: 'search_customers'.tr(),
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Iconsax.search_normal),
             ),
           ),
         ],
@@ -117,7 +118,7 @@ class CustomersScreen extends StatelessWidget {
   ) {
     if (state.customers.isEmpty) {
       return EmptyStateView(
-        icon: Icons.people_outline,
+        icon: Iconsax.people,
         title: 'empty_customers_title'.tr(),
         message: 'empty_customers_message'.tr(),
         onRetry: cubit.load,
@@ -157,7 +158,7 @@ class CustomersScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Iconsax.arrow_left_2),
             onPressed:
                 state.page > 1 ? () => cubit.goToPage(state.page - 1) : null,
           ),
@@ -167,7 +168,7 @@ class CustomersScreen extends StatelessWidget {
             style: textTheme.bodySmall,
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Iconsax.arrow_right_2),
             onPressed: state.page < state.pages
                 ? () => cubit.goToPage(state.page + 1)
                 : null,

@@ -12,6 +12,7 @@ import 'package:tavo/feature/panel_reviews/ui/logic/reviews_panel_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/reviews_screen.dart';
 
 import 'helpers/app_shell.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 const _venue = StaffRestaurant(
   restaurantId: 'r1',
@@ -135,7 +136,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('boom'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.tap(find.byIcon(Iconsax.refresh));
     await tester.pumpAndSettle();
     expect(repo.calls, contains('getReviews:1:*'));
     expect(find.textContaining('boom'), findsNothing);

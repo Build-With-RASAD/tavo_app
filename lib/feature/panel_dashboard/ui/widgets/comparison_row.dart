@@ -6,6 +6,7 @@ import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/dashboard_format.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The period-over-period comparison: this window against the window right
 /// before it.
@@ -118,8 +119,8 @@ class _MetricTile extends StatelessWidget {
               if (delta != null && delta != 0)
                 Icon(
                   delta > 0
-                      ? Icons.arrow_upward
-                      : Icons.arrow_downward,
+                      ? Iconsax.arrow_up_2
+                      : Iconsax.arrow_down_2,
                   size: 12.r,
                   color: color,
                 ),

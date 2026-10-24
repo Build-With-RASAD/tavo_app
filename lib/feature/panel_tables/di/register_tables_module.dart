@@ -1,10 +1,10 @@
 // lib/feature/panel_tables/di/register_tables_module.dart
-import 'package:flutter/material.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/panel_tables/data/repo/tables_panel_repo.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/tables_screen.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Reported to the controller as the service_locator.dart one-liner pair:
 ///   import 'package:tavo/feature/panel_tables/di/register_tables_module.dart';
@@ -22,7 +22,7 @@ void registerTablesModule() {
   MoreHubRegistry.register(MoreHubEntry(
     id: 'tables',
     labelKey: 'tables',
-    icon: Icons.table_chart_outlined,
+    icon: Iconsax.grid_4,
     // `staffOpenOrders` is the shell's route back to the Orders tab. The
     // tables screen offers it when the user taps an OCCUPIED table, so the
     // owner can jump straight to the order that is holding that table.

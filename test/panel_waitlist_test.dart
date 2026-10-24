@@ -13,6 +13,7 @@ import 'package:tavo/feature/restaurant_auth/ui/screens/waitlist_tab.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
 
 import 'helpers/app_shell.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 const _venue = StaffRestaurant(
   restaurantId: 'r1',
@@ -173,7 +174,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('boom'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.tap(find.byIcon(Iconsax.refresh));
     await tester.pumpAndSettle();
     expect(repo.calls, contains('getWaitlist:1:*'));
   });

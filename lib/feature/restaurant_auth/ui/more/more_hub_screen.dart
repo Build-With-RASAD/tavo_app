@@ -7,6 +7,7 @@ import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// "More" tab: the management hub grid (Menu, Tables, Customers, Staff,
 /// Branches, Reviews, Settings, Contact & QR) assembled from
@@ -23,7 +24,7 @@ class MoreHubScreen extends StatelessWidget {
     if (entries.isEmpty) {
       return Scaffold(
         body: EmptyStateView(
-          icon: Icons.grid_view_outlined,
+          icon: Iconsax.grid_1,
           title: 'hub_empty'.tr(),
         ),
       );

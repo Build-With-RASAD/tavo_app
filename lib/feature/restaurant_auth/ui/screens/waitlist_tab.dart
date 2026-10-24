@@ -55,7 +55,7 @@ class WaitlistTab extends StatelessWidget {
       return Scaffold(
         body: SafeArea(
           child: EmptyStateView(
-            icon: Icons.hourglass_empty_outlined,
+            icon: Iconsax.timer_1,
             title: 'waitlist_empty'.tr(),
           ),
         ),
@@ -75,7 +75,7 @@ class WaitlistTab extends StatelessWidget {
             floatingActionButton: FloatingActionButton.extended(
               key: const ValueKey('waitlist_add_walkin'),
               onPressed: () => _openWalkinSheet(context, cubit),
-              icon: const Icon(Icons.person_add_alt_1_outlined),
+              icon: const Icon(Iconsax.user_add),
               label: Text('dash_quick_waitlist'.tr()),
             ),
             body: SafeArea(child: _buildBody(context, cubit, state)),
@@ -113,7 +113,7 @@ class WaitlistTab extends StatelessWidget {
             child: ErrorStateView(message: state.message, onRetry: cubit.load),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Iconsax.refresh),
             onPressed: cubit.load,
           ),
           const SizedBox(height: 8),
@@ -176,7 +176,7 @@ class WaitlistTab extends StatelessWidget {
   ) {
     if (state.entries.isEmpty) {
       return EmptyStateView(
-        icon: Icons.hourglass_empty_outlined,
+        icon: Iconsax.timer_1,
         title: 'waitlist_empty'.tr(),
         onRetry: cubit.load,
       );

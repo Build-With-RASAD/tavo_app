@@ -10,6 +10,7 @@ import 'package:tavo/feature/panel_branches/data/repo/branches_panel_repo.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/branches_screen.dart';
 
 import 'helpers/app_shell.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 const _venue = StaffRestaurant(
   restaurantId: 'r1',
@@ -175,7 +176,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('boom'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.tap(find.byIcon(Iconsax.refresh));
     await tester.pumpAndSettle();
     expect(repo.calls.where((c) => c == 'getBranches'), hasLength(2));
     expect(find.textContaining('boom'), findsNothing);

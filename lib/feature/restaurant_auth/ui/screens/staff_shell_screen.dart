@@ -209,7 +209,7 @@ class _StaffShellScreenState extends State<StaffShellScreen> {
             ),
           IconButton(
             tooltip: 'logout'.tr(),
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Iconsax.logout),
             onPressed: _onLogout,
           ),
         ],

@@ -18,6 +18,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/panel_branches/data/model/branch_models.dart';
 import 'package:tavo/feature/panel_branches/data/repo/branches_panel_repo.dart';
 import 'package:tavo/feature/panel_branches/ui/logic/branches_panel_cubit.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Weekday order for the hours editor (matches the backend day map).
 const _weekDays = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
@@ -78,7 +79,7 @@ class BranchesScreen extends StatelessWidget {
                 ? FloatingActionButton(
                     key: const ValueKey('add_branch'),
                     onPressed: () => _openBranchSheet(context, cubit, null),
-                    child: const Icon(Icons.add),
+                    child: const Icon(Iconsax.add),
                   )
                 : null,
           );
@@ -99,7 +100,7 @@ class BranchesScreen extends StatelessWidget {
             child: ErrorStateView(message: state.message, onRetry: cubit.load),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Iconsax.refresh),
             onPressed: cubit.load,
           ),
           SizedBox(height: 8.h),
@@ -141,7 +142,7 @@ class BranchesScreen extends StatelessWidget {
   ) {
     if (state.branches.isEmpty) {
       return EmptyStateView(
-        icon: Icons.store_outlined,
+        icon: Iconsax.shop,
         title: 'empty_branches_title'.tr(),
         message: 'empty_branches_message'.tr(),
         onRetry: cubit.load,
@@ -294,7 +295,7 @@ class _BranchCard extends StatelessWidget {
           else if (manageable)
             IconButton(
               key: ValueKey('actions_${branch.id}'),
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(Iconsax.more),
               onPressed: onActions,
             ),
         ],
@@ -367,8 +368,8 @@ class _BranchActionsSheet extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(branch.isActive
-                  ? Icons.pause_outlined
-                  : Icons.play_arrow_outlined),
+                  ? Iconsax.pause
+                  : Iconsax.play),
               title: Text(
                 branch.isActive ? 'deactivate'.tr() : 'activate'.tr(),
               ),
@@ -376,13 +377,13 @@ class _BranchActionsSheet extends StatelessWidget {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.edit_outlined),
+              leading: const Icon(Iconsax.edit_2),
               title: Text('edit_branch'.tr()),
               onTap: onEdit,
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.delete_outline),
+              leading: const Icon(Iconsax.trash),
               title: Text('delete_branch'.tr()),
               onTap: onDelete,
             ),

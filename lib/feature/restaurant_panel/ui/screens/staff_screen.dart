@@ -18,6 +18,7 @@ import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
 import 'package:tavo/feature/panel_staff/data/model/staff_models.dart';
 import 'package:tavo/feature/panel_staff/data/repo/staff_panel_repo.dart';
 import 'package:tavo/feature/panel_staff/ui/logic/staff_panel_cubit.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Mutation gate: owner/manager, or anyone holding `full_access` /
 /// `manage_staff` (mirrors `StaffRestaurant.canManage` plus `manage_staff`).
@@ -70,7 +71,7 @@ class StaffScreen extends StatelessWidget {
                 ? FloatingActionButton(
                     key: const ValueKey('add_staff'),
                     onPressed: () => _openStaffSheet(context, cubit, null),
-                    child: const Icon(Icons.add),
+                    child: const Icon(Iconsax.add),
                   )
                 : null,
           );
@@ -91,7 +92,7 @@ class StaffScreen extends StatelessWidget {
             child: ErrorStateView(message: state.message, onRetry: cubit.load),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Iconsax.refresh),
             onPressed: cubit.load,
           ),
           SizedBox(height: 8.h),
@@ -133,7 +134,7 @@ class StaffScreen extends StatelessWidget {
   ) {
     if (state.members.isEmpty) {
       return EmptyStateView(
-        icon: Icons.badge_outlined,
+        icon: Iconsax.user_square,
         title: 'empty_staff_title'.tr(),
         message: 'empty_staff_message'.tr(),
         onRetry: cubit.load,
@@ -286,7 +287,7 @@ class _StaffMemberCard extends StatelessWidget {
           else if (manageable)
             IconButton(
               key: ValueKey('actions_${member.id}'),
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(Iconsax.more),
               onPressed: onActions,
             ),
         ],
@@ -361,26 +362,26 @@ class _StaffActionsSheet extends StatelessWidget {
             if (member.status == 'inactive')
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.play_arrow_outlined),
+                leading: const Icon(Iconsax.play),
                 title: Text('activate'.tr()),
                 onTap: onActivate,
               )
             else
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.pause_outlined),
+                leading: const Icon(Iconsax.pause),
                 title: Text('suspend'.tr()),
                 onTap: onSuspend,
               ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.edit_outlined),
+              leading: const Icon(Iconsax.edit_2),
               title: Text('edit_staff'.tr()),
               onTap: onEdit,
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.delete_outline),
+              leading: const Icon(Iconsax.trash),
               title: Text('delete_staff'.tr()),
               onTap: onDelete,
             ),

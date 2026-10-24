@@ -7,6 +7,7 @@ import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/data/model/analytics_models.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/dashboard_format.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The range-scoped KPI tiles.
 ///
@@ -26,62 +27,62 @@ class KpiTiles extends StatelessWidget {
       (
         label: 'dash_revenue_gross'.tr(),
         value: formatMoney(kpi.revenue.gross),
-        icon: Icons.payments_outlined,
+        icon: Iconsax.card,
       ),
       (
         label: 'dash_revenue_net'.tr(),
         value: formatMoney(kpi.revenue.net),
-        icon: Icons.account_balance_wallet_outlined,
+        icon: Iconsax.wallet_3,
       ),
       (
         label: 'dash_revenue_tax'.tr(),
         value: formatMoney(kpi.revenue.tax),
-        icon: Icons.receipt_outlined,
+        icon: Iconsax.receipt_1,
       ),
       (
         label: 'dash_orders_total'.tr(),
         value: formatCount(kpi.orders.total),
-        icon: Icons.shopping_bag_outlined,
+        icon: Iconsax.shopping_bag,
       ),
       (
         label: 'dash_avg_order_value'.tr(),
         value: formatMoney(kpi.revenue.avgOrderValue),
-        icon: Icons.local_activity_outlined,
+        icon: Iconsax.ticket,
       ),
       (
         label: 'dash_avg_prep_minutes'.tr(),
         value: _minutes(kpi.orders.avgPrepMinutes),
-        icon: Icons.timer_outlined,
+        icon: Iconsax.timer_1,
       ),
       (
         label: 'dash_reservations_total'.tr(),
         value: formatCount(kpi.reservations.total),
-        icon: Icons.event_seat_outlined,
+        icon: Iconsax.ticket,
       ),
       (
         label: 'dash_no_show_rate'.tr(),
         value: _percent(kpi.reservations.noShowRate),
-        icon: Icons.person_off_outlined,
+        icon: Iconsax.profile_delete,
       ),
       (
         label: 'dash_capacity_utilization'.tr(),
         value: _percent(kpi.reservations.capacityUtilizationPct),
-        icon: Icons.event_available_outlined,
+        icon: Iconsax.calendar_tick,
       ),
       (
         label: 'dash_customers_returning'.tr(),
         value: _percent(kpi.customers.returningPct),
-        icon: Icons.people_outline,
+        icon: Iconsax.people,
       ),
       (
         label: 'dash_avg_rating'.tr(),
         value: kpi.avgRating?.toStringAsFixed(1) ?? '—',
-        icon: Icons.star_outline,
+        icon: Iconsax.star,
       ),
       (
         label: 'dash_avg_ticket_minutes'.tr(),
         value: _minutes(kpi.avgTicketMinutes),
-        icon: Icons.schedule_outlined,
+        icon: Iconsax.clock,
       ),
     ];
 

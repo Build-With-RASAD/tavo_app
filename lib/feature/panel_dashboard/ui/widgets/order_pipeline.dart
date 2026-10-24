@@ -6,6 +6,7 @@ import 'package:tavo/core/animation/primitives/spring_reveal.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/dashboard_format.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The order funnel: how many orders sit in each status right now.
 ///
@@ -114,7 +115,7 @@ class OrderPipeline extends StatelessWidget {
                         ),
                       ),
                       Icon(
-                        Icons.chevron_right,
+                        Iconsax.arrow_right_2,
                         size: 16.r,
                         color: ColorsManager.darkGray300,
                       ),

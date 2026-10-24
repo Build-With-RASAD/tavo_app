@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/core/widgets/status_badge.dart';
 import 'package:tavo/feature/panel_customers/data/model/customer_models.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// `32.0` → `32`, `32.5` → `32.5` — whole totals read without the `.0`.
 String formatCustomerTotal(double total) =>
@@ -41,7 +42,7 @@ class CustomerDetailScreen extends StatelessWidget {
           SizedBox(height: 8.h),
           if (detail.orders.isEmpty)
             EmptyStateView(
-              icon: Icons.receipt_long_outlined,
+              icon: Iconsax.receipt_2,
               title: 'no_orders'.tr(),
             )
           else
@@ -61,7 +62,7 @@ class CustomerDetailScreen extends StatelessWidget {
           SizedBox(height: 8.h),
           if (detail.reservations.isEmpty)
             EmptyStateView(
-              icon: Icons.event_outlined,
+              icon: Iconsax.calendar_1,
               title: 'no_reservations'.tr(),
             )
           else

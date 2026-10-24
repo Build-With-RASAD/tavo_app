@@ -22,6 +22,7 @@ import 'package:tavo/feature/panel_dashboard/ui/widgets/peak_hours_heatmap.dart'
 import 'package:tavo/feature/panel_dashboard/ui/widgets/revenue_trend_chart.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/section_error_boundary.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/top_items_chart.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The staff panel home — a full restaurant management system in ONE scroll
 /// view, split into three zones (spec decision 1):
@@ -192,7 +193,7 @@ class _DashboardViewState extends State<_DashboardView> {
           builder: (context) => OutlinedButton.icon(
             key: const ValueKey('dash_quick_new_order'),
             onPressed: widget.onNewOrder,
-            icon: const Icon(Icons.add_business_outlined),
+            icon: const Icon(Iconsax.shop_add),
             label: Text('dash_quick_order'.tr()),
           ),
         ),
@@ -350,7 +351,7 @@ class _DashboardViewState extends State<_DashboardView> {
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Icon(
-            Icons.restaurant,
+            Iconsax.cup,
             size: 22.r,
             color: ColorsManager.primary500,
           ),

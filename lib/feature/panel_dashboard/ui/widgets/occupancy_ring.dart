@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/feature/panel_dashboard/ui/widgets/dashboard_format.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The table occupancy ring: how full the floor is right now.
 ///
@@ -80,7 +81,7 @@ class OccupancyRing extends StatelessWidget {
               ),
             ),
             Icon(
-              Icons.chevron_right,
+              Iconsax.arrow_right_2,
               size: 18.r,
               color: ColorsManager.darkGray300,
             ),

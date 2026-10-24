@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tavo/core/animation/primitives/spring_reveal.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// The management shortcuts: the screens a manager opens every shift.
 ///
@@ -25,23 +26,23 @@ class ManagementShortcuts extends StatelessWidget {
     (
       id: 'menu',
       labelKey: 'dash_shortcut_menu',
-      icon: Icons.restaurant_menu_outlined
+      icon: Iconsax.menu_board
     ),
-    (id: 'staff', labelKey: 'dash_shortcut_staff', icon: Icons.badge_outlined),
+    (id: 'staff', labelKey: 'dash_shortcut_staff', icon: Iconsax.user_square),
     (
       id: 'branches',
       labelKey: 'dash_shortcut_branches',
-      icon: Icons.storefront_outlined
+      icon: Iconsax.shop
     ),
     (
       id: 'reviews',
       labelKey: 'dash_shortcut_reviews',
-      icon: Icons.star_border
+      icon: Iconsax.star
     ),
     (
       id: 'settings',
       labelKey: 'dash_shortcut_settings',
-      icon: Icons.settings_outlined
+      icon: Iconsax.setting_2
     ),
   ];
 

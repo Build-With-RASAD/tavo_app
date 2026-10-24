@@ -136,7 +136,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('boom'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.refresh));
+    await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(repo.calls.where((c) => c == 'getSettings'), hasLength(2));
     expect(find.textContaining('boom'), findsNothing);

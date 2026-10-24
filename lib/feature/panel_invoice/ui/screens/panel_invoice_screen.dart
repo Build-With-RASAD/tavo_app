@@ -36,6 +36,7 @@ import 'package:tavo/feature/panel_invoice/data/model/invoice_models.dart';
 import 'package:tavo/feature/panel_invoice/ui/logic/invoice_panel_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/widgets/order_card.dart'
     show formatOrderAmount;
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Print/share seam: the screen calls these; tests inject a fake so no
 /// platform plugin is ever touched in widget tests.
@@ -375,7 +376,7 @@ class _LoadedInvoice extends StatelessWidget {
                 child: OutlinedButton.icon(
                   key: const ValueKey('invoice_print'),
                   onPressed: () => actions.printInvoice(invoice),
-                  icon: const Icon(Icons.print_outlined),
+                  icon: const Icon(Iconsax.printer),
                   label: Text('inv_print'.tr()),
                 ),
               ),
@@ -384,7 +385,7 @@ class _LoadedInvoice extends StatelessWidget {
                 child: OutlinedButton.icon(
                   key: const ValueKey('invoice_share'),
                   onPressed: () => actions.shareInvoice(context, invoice),
-                  icon: const Icon(Icons.share_outlined),
+                  icon: const Icon(Iconsax.share),
                   label: Text('inv_share'.tr()),
                 ),
               ),

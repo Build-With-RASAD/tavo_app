@@ -85,7 +85,7 @@ class ReviewsScreen extends StatelessWidget {
             child: ErrorStateView(message: state.message, onRetry: cubit.load),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Iconsax.refresh),
             onPressed: cubit.load,
           ),
           SizedBox(height: 8.h),
@@ -168,7 +168,7 @@ class ReviewsScreen extends StatelessWidget {
   ) {
     if (state.reviews.isEmpty) {
       return EmptyStateView(
-        icon: Icons.star_border,
+        icon: Iconsax.star,
         title: 'empty_reviews_title'.tr(),
         message: 'empty_reviews_message'.tr(),
         onRetry: cubit.load,
@@ -210,7 +210,7 @@ class ReviewsScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Iconsax.arrow_left_2),
             onPressed:
                 state.page > 1 ? () => cubit.goToPage(state.page - 1) : null,
           ),
@@ -220,7 +220,7 @@ class ReviewsScreen extends StatelessWidget {
             style: textTheme.bodySmall,
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Iconsax.arrow_right_2),
             onPressed: state.page < state.pages
                 ? () => cubit.goToPage(state.page + 1)
                 : null,
@@ -279,7 +279,7 @@ class _ReviewCard extends StatelessWidget {
             children: [
               for (var i = 1; i <= 5; i++)
                 Icon(
-                  Icons.star,
+                  Iconsax.star_1,
                   size: 16,
                   color: i <= review.rating
                       ? Colors.amber
@@ -341,7 +341,7 @@ class _ReviewCard extends StatelessWidget {
             else if (manageable)
               TextButton.icon(
                 key: ValueKey('respond_${review.id}'),
-                icon: const Icon(Icons.reply_outlined, size: 18),
+                icon: const Icon(Iconsax.message, size: 18),
                 label: Text('respond_to_review'.tr()),
                 onPressed: onRespond,
               ),

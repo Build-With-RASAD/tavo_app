@@ -15,6 +15,7 @@ import 'package:tavo/feature/restaurant_panel/ui/logic/orders_state.dart';
 import 'package:tavo/feature/restaurant_panel/ui/widgets/order_card.dart';
 import 'package:tavo/feature/panel_invoice/ui/screens/panel_invoice_screen.dart';
 import 'package:tavo/feature/kitchen/ui/screens/kitchen_screen.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Staff panel orders: a status-filter chip row over the live list, with
 /// per-row status actions, a details sheet and an action sheet guarding the
@@ -157,7 +158,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.filter_alt_outlined,
+                    Iconsax.filter,
                     size: 14.r,
                     color: ColorsManager.primary500,
                   ),
@@ -180,7 +181,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     KitchenScreen(restaurantId: widget.restaurantId),
               ),
             ),
-            icon: const Icon(Icons.soup_kitchen_outlined),
+            icon: const Icon(Iconsax.cup),
           ),
         ],
       ),
@@ -237,7 +238,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     if (state is OrdersLoaded) {
       if (state.orders.isEmpty) {
         return EmptyStateView(
-          icon: Icons.receipt_long,
+          icon: Iconsax.receipt_2,
           title: 'no_orders'.tr(),
           onRetry: cubit.load,
         );
@@ -481,7 +482,7 @@ class OrderDetailsSheet extends StatelessWidget {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.receipt_long_outlined),
+                  icon: const Icon(Iconsax.receipt_2),
                   label: Text('inv_title'.tr()),
                 ),
               ),
