@@ -19,6 +19,7 @@ class ReviewsPanelLoaded extends ReviewsPanelState {
     required this.page,
     required this.pages,
     required this.total,
+    this.summary,
     this.actionId,
     this.actionError,
     this.filterRating,
@@ -28,6 +29,11 @@ class ReviewsPanelLoaded extends ReviewsPanelState {
   final int page;
   final int pages;
   final int total;
+
+  /// Real 0–5 business rating + waiter leaderboard; null until the summary
+  /// call lands (or when it fails — the list must not depend on it).
+  final ExperienceSummary? summary;
+
   final String? actionId; // per-row spinner target
   final String? actionError; // transient, keeps the list on screen
   final int? filterRating; // null = all ratings (server-side filter)
@@ -37,6 +43,7 @@ class ReviewsPanelLoaded extends ReviewsPanelState {
     int? page,
     int? pages,
     int? total,
+    ExperienceSummary? summary,
     String? actionId,
     String? actionError,
     int? filterRating,
@@ -49,6 +56,7 @@ class ReviewsPanelLoaded extends ReviewsPanelState {
         page: page ?? this.page,
         pages: pages ?? this.pages,
         total: total ?? this.total,
+        summary: summary ?? this.summary,
         actionId: clearAction ? null : actionId ?? this.actionId,
         actionError: clearError ? null : actionError ?? this.actionError,
         // `filterRating: null` must clear the filter, so clearing is an

@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:tavo/feature/panel_reviews/data/model/experience_summary.dart';
 import 'package:tavo/feature/panel_reviews/data/model/review_models.dart';
 import 'package:tavo/feature/panel_reviews/data/repo/reviews_panel_repo.dart';
 import 'package:tavo/feature/panel_reviews/ui/logic/reviews_panel_cubit.dart';
@@ -47,6 +48,21 @@ class _FakeReviewsRepo extends ReviewsPanelRepo {
   int pages = 1;
   Object? failure;
   final List<String> calls = [];
+
+  /// Wire-shaped summary; tests replace it to exercise the rating card.
+  Map<String, dynamic> summaryJson = const {};
+  Object? summaryFailure;
+
+  @override
+  Future<ExperienceSummary> getExperienceSummary(String restaurantId) async {
+    calls.add('summary:$restaurantId');
+    if (summaryFailure != null) {
+      final f = summaryFailure;
+      summaryFailure = null;
+      throw f!;
+    }
+    return ExperienceSummary.fromJson(summaryJson);
+  }
 
   @override
   Future<({List<PanelReview> reviews, int page, int pages, int total})>
@@ -145,6 +161,52 @@ void main() {
     expect(repo.calls, contains('respond:v1'));
     expect(find.text('Thank you!'), findsOneWidget);
     expect(find.text('Responded'), findsOneWidget);
+  });
+
+  testWidgets('shows the real business rating and waiter leaderboard',
+      (tester) async {
+    final repo = _FakeReviewsRepo()
+      ..reviews = [_review('r1', 5, 'Great')]
+      ..summaryJson = const {
+        'count': 24,
+        'scored': 20,
+        'average': 4.6,
+        'areas': {
+          'restaurant': 4.8,
+          'waiter': 4.5,
+          'food': 4.7,
+          'speed': 4.2,
+          'cleanliness': 4.9,
+        },
+        'byType': {'review': 20, 'complaint': 3, 'suggestion': 1},
+        'openComplaints': 2,
+        'waiters': [
+          {'staffId': 's1', 'name': 'Ahmed', 'count': 12, 'average': 4.9},
+          {'staffId': 's2', 'name': 'Sara', 'count': 8, 'average': 4.3},
+        ],
+      };
+
+    await _pumpReviews(tester, repo);
+    await tester.pumpAndSettle();
+
+    expect(find.text('4.6'), findsOneWidget);
+    expect(find.text('20 ratings'), findsOneWidget);
+    expect(find.text('Waiter leaderboard'), findsOneWidget);
+    expect(find.text('Ahmed'), findsOneWidget);
+    expect(find.text('2 Open complaints'), findsOneWidget);
+  });
+
+  testWidgets('a summary failure never blocks the review list',
+      (tester) async {
+    final repo = _FakeReviewsRepo()
+      ..reviews = [_review('r1', 4, 'Good')]
+      ..summaryFailure = Exception('summary down');
+
+    await _pumpReviews(tester, repo);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sara'), findsWidgets); // the review row still renders
+    expect(find.text('No guest ratings yet'), findsOneWidget);
   });
 
   testWidgets('rating chips refetch with the server-side rating filter',

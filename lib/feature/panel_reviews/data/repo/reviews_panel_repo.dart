@@ -5,6 +5,7 @@ import 'package:tavo/core/network/api_error_parser.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/core/network/panel_envelope.dart';
 
+import '../model/experience_summary.dart';
 import '../model/review_models.dart';
 
 class ReviewsPanelRepo {
@@ -29,6 +30,23 @@ class ReviewsPanelRepo {
         page: (pagination?['page'] as num?)?.toInt() ?? page,
         pages: (pagination?['pages'] as num?)?.toInt() ?? 1,
         total: (pagination?['total'] as num?)?.toInt() ?? rows.length,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// GET {panelBase}/experience-ratings/summary?restaurantId=
+  ///
+  /// The real business rating (five areas + waiter leaderboard) built from
+  /// guest ratings at the table.
+  Future<ExperienceSummary> getExperienceSummary(String restaurantId) async {
+    try {
+      final res = await _api.get(
+        '${ApiConstants.panelBase}/experience-ratings/summary?restaurantId=$restaurantId',
+      );
+      return ExperienceSummary.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
       );
     } on DioException catch (e) {
       throw parseDioError(e);

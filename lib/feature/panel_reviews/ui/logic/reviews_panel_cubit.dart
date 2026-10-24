@@ -1,5 +1,6 @@
 // ui/logic/reviews_panel_cubit.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../data/model/experience_summary.dart';
 import '../../data/model/review_models.dart';
 import '../../data/repo/reviews_panel_repo.dart';
 
@@ -22,13 +23,22 @@ class ReviewsPanelCubit extends Cubit<ReviewsPanelState> {
     if (isClosed) return;
     emit(const ReviewsPanelLoading());
     try {
+      // The summary is decoration on top of the list: if it fails, the
+      // reviews still render (and the card shows its empty state).
+      final summaryFuture = _repo
+          .getExperienceSummary(restaurantId)
+          .then<ExperienceSummary?>((value) => value)
+          .catchError((Object _) => null);
+
       final out = await _repo.getReviews(restaurantId);
+      final summary = await summaryFuture;
       if (isClosed) return;
       emit(ReviewsPanelLoaded(
         reviews: out.reviews,
         page: out.page,
         pages: out.pages,
         total: out.total,
+        summary: summary,
       ));
     } catch (e) {
       if (isClosed) return;
