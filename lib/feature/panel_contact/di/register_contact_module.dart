@@ -1,9 +1,11 @@
 // lib/feature/panel_contact/di/register_contact_module.dart
 import 'package:flutter/material.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:tavo/core/di/service_locator.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/feature/panel_contact/data/repo/contact_panel_repo.dart';
 import 'package:tavo/feature/panel_contact/ui/screens/panel_contact_screen.dart';
+import 'package:tavo/feature/restaurant_panel/ui/screens/restaurant_profile_screen.dart';
 import 'package:tavo/feature/restaurant_auth/ui/more/more_hub_registry.dart';
 
 /// Reported to the controller as the service_locator.dart one-liner pair:
@@ -27,5 +29,15 @@ void registerContactModule() {
       restaurantId: restaurantId,
       venue: venue,
     ),
+  ));
+
+  // Identity, copy and the two images — the contact screen edits phone and
+  // social links, this one edits what guests actually see.
+  MoreHubRegistry.register(MoreHubEntry(
+    id: 'profile',
+    labelKey: 'restaurant_profile',
+    icon: Iconsax.profile_circle,
+    builder: (restaurantId, venue) =>
+        RestaurantProfileScreen(restaurantId: restaurantId),
   ));
 }
