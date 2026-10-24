@@ -304,7 +304,15 @@ testWidgets('served filter chip exists and filters through the repo', (
 
     expect(find.byType(OrderDetailsSheet), findsOneWidget);
     expect(find.text('Order details'), findsOneWidget);
-    expect(find.text('Smoky BBQ Burger'), findsOneWidget);
+    // The order card also lists its lines now, so scope the item assertion to
+    // the sheet instead of matching the row behind it.
+    expect(
+      find.descendant(
+        of: find.byType(OrderDetailsSheet),
+        matching: find.text('Smoky BBQ Burger'),
+      ),
+      findsOneWidget,
+    );
     // The card below the modal sheet shows a payment pill too — scope to
     // the sheet so the pair doesn't read as a duplicate.
     expect(

@@ -3,14 +3,18 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:tavo/core/theme/colors.dart';
 import 'package:tavo/core/theme/text_styles.dart';
 import 'package:tavo/core/widgets/status_badge.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
 
-/// One order row: number + status badge, customer line, an `N× item`
-/// summary, total with a payment pill, and the status actions valid for the
-/// row's current status.
+/// One order row, built to answer the three questions service staff ask at a
+/// glance: *where* is it going (`T1-1 · Terrace`), *how long* has it been
+/// waiting (colour-coded timer) and *what is in it* (lines + guest notes).
+///
+/// The left accent bar repeats the status colour, so a long list can be
+/// scanned vertically without reading a single badge.
 ///
 /// Tapping the card (anywhere but a button) reports [onTap] so the screen
 /// can open the details sheet; [onAction] receives the TARGET status from
@@ -37,11 +41,19 @@ class OrderCard extends StatelessWidget {
   /// Opens the order details sheet.
   final VoidCallback onTap;
 
+  /// How many item lines the row shows before collapsing into `+N`.
+  static const int _previewLines = 3;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final actions = nextOrderActionsFor(order.orderStatus);
     final paymentKey = paymentStatusLabelKey(order.paymentStatus);
+    final accent = StatusBadge.colorFor(order.orderStatus);
+    final minutes = order.minutesWaiting();
+    final terminal = order.orderStatus == 'served' ||
+        order.orderStatus == 'cancelled';
+    final sourceKey = orderSourceLabelKey(order.source);
     final customer = [
       if (order.customerName.isNotEmpty) order.customerName,
       if (order.customerPhone.isNotEmpty) order.customerPhone,
@@ -50,89 +62,188 @@ class OrderCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(18.r),
         side: const BorderSide(color: ColorsManager.grey100),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.all(14.r),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      order.orderNumber,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+              Container(width: 4.w, color: accent),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(12.w, 12.h, 14.w, 12.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              order.orderNumber,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          StatusBadge(status: order.orderStatus),
+                        ],
                       ),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  StatusBadge(status: order.orderStatus),
-                ],
-              ),
-              if (customer.isNotEmpty) ...[
-                SizedBox(height: 4.h),
-                Text(
-                  customer,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyles.font12DarkGray400Weight(context),
-                ),
-              ],
-              if (order.items.isNotEmpty) ...[
-                SizedBox(height: 4.h),
-                Text(
-                  order.items
-                      .map((line) => '${line.quantity}× ${line.name}')
-                      .join(', '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyles.font14Black400Weight(context),
-                ),
-              ],
-              SizedBox(height: 8.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${formatOrderAmount(order.totalPrice)} ${'currency'.tr()}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyles.font16Black500Weight(context),
-                    ),
-                  ),
-                  if (paymentKey != null) ...[
-                    SizedBox(width: 8.w),
-                    StatusBadge(
-                      status: order.paymentStatus,
-                      label: paymentKey.tr(),
-                    ),
-                  ],
-                ],
-              ),
-              if (actions.isNotEmpty) ...[
-                SizedBox(height: 10.h),
-                Row(
-                  children: [
-                    for (var i = 0; i < actions.length; i++) ...[
-                      if (i > 0) SizedBox(width: 8.w),
-                      Expanded(child: _actionButton(context, actions[i])),
+                      SizedBox(height: 8.h),
+                      Wrap(
+                        spacing: 6.w,
+                        runSpacing: 6.h,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (order.tableCode.isNotEmpty)
+                            _MetaChip(
+                              icon: Iconsax.location,
+                              label: order.zone.isEmpty
+                                  ? order.tableCode
+                                  : '${order.tableCode} · ${order.zone}',
+                              emphasis: true,
+                            ),
+                          if (order.guestCount > 0)
+                            _MetaChip(
+                              icon: Iconsax.people,
+                              label: order.tableSeats > 0
+                                  ? '${order.guestCount} / ${order.tableSeats}'
+                                  : '${order.guestCount}',
+                              danger: order.tableSeats > 0 &&
+                                  order.guestCount > order.tableSeats,
+                            ),
+                          if (sourceKey.isNotEmpty)
+                            _MetaChip(
+                              icon: Iconsax.scan,
+                              label: sourceKey.tr(),
+                            ),
+                          if (!terminal)
+                            _MetaChip(
+                              icon: Iconsax.clock,
+                              label: formatElapsed(minutes),
+                              color: _timerColor(minutes),
+                              emphasis: true,
+                            ),
+                        ],
+                      ),
+                      if (customer.isNotEmpty) ...[
+                        SizedBox(height: 6.h),
+                        Text(
+                          customer,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyles.font12DarkGray400Weight(context),
+                        ),
+                      ],
+                      if (order.items.isNotEmpty) ...[
+                        SizedBox(height: 10.h),
+                        for (final line in order.items.take(_previewLines))
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 4.h),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 22.w,
+                                  height: 22.w,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: ColorsManager.grey100,
+                                    borderRadius: BorderRadius.circular(7.r),
+                                  ),
+                                  child: Text(
+                                    '${line.quantity}',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 8.w),
+                                Expanded(
+                                  child: Text(
+                                    line.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyles.font14Black400Weight(
+                                      context,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  formatOrderAmount(line.lineTotal),
+                                  style: TextStyles.font12DarkGray400Weight(
+                                    context,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (order.items.length > _previewLines)
+                          Text(
+                            '+${order.items.length - _previewLines}',
+                            style: TextStyles.font12DarkGray400Weight(context),
+                          ),
+                      ],
+                      if (order.notes.isNotEmpty) ...[
+                        SizedBox(height: 8.h),
+                        _GuestNote(text: order.notes),
+                      ],
+                      SizedBox(height: 10.h),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${formatOrderAmount(order.totalPrice)} ${'currency'.tr()}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyles.font16Black500Weight(context),
+                            ),
+                          ),
+                          if (paymentKey != null) ...[
+                            SizedBox(width: 8.w),
+                            StatusBadge(
+                              status: order.paymentStatus,
+                              label: paymentKey.tr(),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (actions.isNotEmpty) ...[
+                        SizedBox(height: 10.h),
+                        Row(
+                          children: [
+                            for (var i = 0; i < actions.length; i++) ...[
+                              if (i > 0) SizedBox(width: 8.w),
+                              Expanded(
+                                child: _actionButton(context, actions[i]),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ],
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Green under 10 minutes, amber under 20, red after — the same thresholds
+  /// the kitchen display uses for "late".
+  Color _timerColor(int minutes) {
+    if (minutes >= 20) return const Color(0xFFC62828);
+    if (minutes >= 10) return const Color(0xFFF9A825);
+    return const Color(0xFF22A83A);
   }
 
   /// One target of `nextOrderActionsFor`: `confirmed` → "Confirm",
@@ -169,6 +280,107 @@ class OrderCard extends StatelessWidget {
       default:
         return orderStatusLabelKey(target).tr();
     }
+  }
+}
+
+/// A small fact about the order: table, party, channel or elapsed time.
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
+    required this.icon,
+    required this.label,
+    this.emphasis = false,
+    this.danger = false,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+
+  /// Draws the chip on the gold-tinted surface instead of the neutral one.
+  final bool emphasis;
+
+  /// Draws the chip in danger red (an overfull party).
+  final bool danger;
+
+  /// Overrides the foreground colour (the elapsed-time heat).
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = danger
+        ? const Color(0xFFC62828)
+        : color ?? ColorsManager.darkGray;
+    final background = danger
+        ? const Color(0xFFFDECEA)
+        : emphasis
+            ? ColorsManager.primaryColor.withValues(alpha: 0.12)
+            : ColorsManager.grey100;
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13.sp, color: foreground),
+          SizedBox(width: 4.w),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600,
+              color: foreground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The guest's own words — visually separate from the item list so an allergy
+/// note never gets lost between two line items.
+class _GuestNote extends StatelessWidget {
+  const _GuestNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(10.r),
+        border: const Border(
+          left: BorderSide(color: ColorsManager.primaryColor, width: 3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Iconsax.note_1, size: 14, color: Color(0xFF8D6E00)),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.sp,
+                height: 1.4,
+                fontStyle: FontStyle.italic,
+                color: const Color(0xFF6B5200),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

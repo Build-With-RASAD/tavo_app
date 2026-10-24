@@ -63,3 +63,21 @@ List<String> nextWaitlistActions(String status) => switch (status) {
       'notified' => ['confirm', 'no-show', 'cancel'],
       _ => [],
     };
+
+/// 1-based queue position per entry id, oldest first.
+///
+/// Only `waiting`/`notified` entries occupy a position: once a party is
+/// seated, cancelled or marked no-show it must not shift the line behind it.
+/// Sorting by `createdAt` (not by the client's clock-derived wait) keeps the
+/// order stable between rebuilds.
+Map<String, int> waitlistQueuePositions(List<PanelWaitlistEntry> entries) {
+  final active = entries
+      .where((entry) => entry.status == 'waiting' || entry.status == 'notified')
+      .toList()
+    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+  return {
+    for (var index = 0; index < active.length; index++)
+      active[index].id: index + 1,
+  };
+}

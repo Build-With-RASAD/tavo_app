@@ -20,6 +20,9 @@ class PanelOrder {
     this.zone = '',
     this.source = '',
     this.sessionCode = '',
+    this.guestCount = 0,
+    this.tableSeats = 0,
+    this.notes = '',
   });
 
   final String id;
@@ -46,6 +49,16 @@ class PanelOrder {
   /// The party code (`A12-1`) for QR table orders.
   final String sessionCode;
 
+  /// How many phones joined the table session (0 when the order is not a
+  /// seated party). Falls back to the reservation's party size.
+  final int guestCount;
+
+  /// Seats printed on the physical table, so staff can spot an overfull party.
+  final int tableSeats;
+
+  /// Guest notes typed at checkout — allergies, "no onions", "call on arrival".
+  final String notes;
+
   bool get isTableOrder => source == 'qr_table' || tableCode.isNotEmpty;
 
   DateTime? get placedAt => DateTime.tryParse(createdAt);
@@ -62,6 +75,10 @@ class PanelOrder {
     final userId = _asMap(json['userId']);
     final customer = _asMap(json['customer']);
     final rawItems = json['menuItems'] ?? json['items'];
+    final table = _asMap(json['tableId']);
+    final session = _asMap(json['sessionId']);
+    final reservation = _asMap(json['reservationId']);
+    final sessionGuests = session?['guests'];
 
     return PanelOrder(
       id: (json['_id'] ?? json['id'])?.toString() ?? '',
@@ -82,10 +99,15 @@ class PanelOrder {
       paymentStatus: json['paymentStatus']?.toString() ?? '',
       orderStatus: json['orderStatus']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
-      tableCode: _asMap(json['tableId'])?['code']?.toString() ?? '',
-      zone: _asMap(json['tableId'])?['zone']?.toString() ?? '',
+      tableCode: table?['code']?.toString() ?? '',
+      zone: table?['zone']?.toString() ?? '',
       source: json['source']?.toString() ?? '',
-      sessionCode: _asMap(json['sessionId'])?['code']?.toString() ?? '',
+      sessionCode: session?['code']?.toString() ?? '',
+      guestCount: sessionGuests is List && sessionGuests.isNotEmpty
+          ? sessionGuests.length
+          : _toInt(reservation?['guestsCount']),
+      tableSeats: _toInt(table?['seats']),
+      notes: json['notes']?.toString().trim() ?? '',
     );
   }
 }
@@ -117,6 +139,30 @@ class OrderLine {
 
 /// i18n key for an order status label — the key is the status itself.
 String orderStatusLabelKey(String orderStatus) => orderStatus;
+
+/// i18n key for the channel an order arrived through. Unknown values fall
+/// back to the app channel rather than printing a raw enum.
+String orderSourceLabelKey(String source) {
+  switch (source) {
+    case 'qr_table':
+      return 'source_qr_table';
+    case 'counter':
+      return 'source_counter';
+    case 'waiter':
+      return 'source_waiter';
+    case 'app':
+      return 'source_app';
+    default:
+      return '';
+  }
+}
+
+/// `12` → `12m`, `75` → `1h 15m` — the same compact shape the waitlist uses,
+/// so timers read identically across the panel.
+String formatElapsed(int minutes) {
+  if (minutes < 60) return '${minutes}m';
+  return '${minutes ~/ 60}h ${minutes % 60}m';
+}
 
 /// Valid next statuses for an order, mirroring the backend `validTransitions`
 /// map. Terminal statuses (`served`, `cancelled`) have no next actions.
