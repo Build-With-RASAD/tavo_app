@@ -26,6 +26,12 @@ class DioFactory {
       _dio!.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) async {
+            // Public guest calls (table QR) carry their own short-lived bearer
+            // and must never be overwritten by the signed-in customer token.
+            if (options.extra['skipAuth'] == true) {
+              return handler.next(options);
+            }
+
             final token = CacheHelper.getToken();
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';

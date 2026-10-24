@@ -27,6 +27,9 @@ sealed class DeepLinkTarget {
   const factory DeepLinkTarget.restaurantDetailsFromSlug(String slug) =
       RestaurantSlugTarget;
 
+  /// A printed table QR code (`https://<host>/t/<token>`).
+  const factory DeepLinkTarget.tableSession(String token) = TableSessionTarget;
+
   /// The restaurant id, when this target carries one.
   String? get restaurantId => switch (this) {
     RestaurantDetailsTarget target => target.restaurantId,
@@ -36,6 +39,12 @@ sealed class DeepLinkTarget {
   /// The public slug, when this target carries one.
   String? get slug => switch (this) {
     RestaurantSlugTarget target => target.slug,
+    _ => null,
+  };
+
+  /// The table QR token, when this target carries one.
+  String? get tableToken => switch (this) {
+    TableSessionTarget target => target.tableToken,
     _ => null,
   };
 }
@@ -91,4 +100,24 @@ final class RestaurantSlugTarget extends DeepLinkTarget {
 
   @override
   String toString() => 'DeepLinkTarget.restaurantDetailsFromSlug($slug)';
+}
+
+/// A table QR code. The token is the only thing the app needs: the public
+/// endpoint resolves it to the restaurant, the table and the open session.
+final class TableSessionTarget extends DeepLinkTarget {
+  const TableSessionTarget(this.tableToken);
+
+  @override
+  final String tableToken;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TableSessionTarget && other.tableToken == tableToken;
+
+  @override
+  int get hashCode => tableToken.hashCode;
+
+  @override
+  String toString() => 'DeepLinkTarget.tableSession($tableToken)';
 }

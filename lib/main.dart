@@ -12,6 +12,7 @@ import 'package:tavo/core/navigation/deep_link_navigator.dart';
 import 'package:tavo/core/navigation/deep_link_service.dart';
 import 'package:tavo/core/navigation/deep_link_target.dart';
 import 'package:tavo/core/theme/app_theme.dart';
+import 'package:tavo/feature/qr_table/ui/screens/table_session_screen.dart';
 import 'package:tavo/feature/restaurant/ui/screens/restaurant_details_screen.dart';
 import 'package:tavo/feature/splash/ui/screens/splash_screen.dart';
 
@@ -89,6 +90,7 @@ class _TavoAppState extends State<TavoApp> {
   void _onTarget(DeepLinkTarget target) {
     switch (target) {
       case RestaurantDetailsTarget():
+      case TableSessionTarget():
         _deepLinkNavigator.offer(target);
       default:
         // `DeepLinkTarget.none` and the slug variant never reach the UI: the
@@ -100,13 +102,21 @@ class _TavoAppState extends State<TavoApp> {
 
   void _openTarget(DeepLinkTarget target) {
     final restaurantId = target.restaurantId;
-    if (restaurantId == null || restaurantId.isEmpty) return;
+    if (restaurantId != null && restaurantId.isNotEmpty) {
+      appNavigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => RestaurantDetailsScreen(restaurantId: restaurantId),
+        ),
+      );
+      return;
+    }
 
-    appNavigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (_) => RestaurantDetailsScreen(restaurantId: restaurantId),
-      ),
-    );
+    final tableToken = target.tableToken;
+    if (tableToken != null && tableToken.isNotEmpty) {
+      appNavigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => TableSessionScreen(qrToken: tableToken)),
+      );
+    }
   }
 
   void _showRestaurantUnavailable() {

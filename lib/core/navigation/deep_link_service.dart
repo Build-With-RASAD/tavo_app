@@ -207,7 +207,15 @@ class DeepLinkService {
 
     final segments = _segments(uri.pathSegments);
     if (segments.length != 2) return DeepLinkTarget.none;
-    if (segments.first.toLowerCase() != _menuSegment) {
+
+    final section = segments.first.toLowerCase();
+    if (section == _tableSegment) {
+      final token = segments.last;
+      if (!_tableTokenPattern.hasMatch(token)) return DeepLinkTarget.none;
+      return DeepLinkTarget.tableSession(token);
+    }
+
+    if (section != _menuSegment) {
       return DeepLinkTarget.none;
     }
     return DeepLinkTarget.restaurantDetailsFromSlug(segments.last);
@@ -322,7 +330,13 @@ class DeepLinkService {
 const String _httpsScheme = 'https';
 const String _customScheme = 'tavo';
 const String _menuSegment = 'menu';
+const String _tableSegment = 't';
 const String _restaurantSegment = 'restaurant';
+
+/// A printed table token: URL-safe, long enough to be unguessable. Matches the
+/// backend's 24-byte base64url tokens and rejects the `/t/` web page spelling
+/// (`/t/5`) that the marketing site uses for its demo.
+final RegExp _tableTokenPattern = RegExp(r'^[A-Za-z0-9_-]{16,128}$');
 
 /// The only host the app answers to — derived from the API base URL so the
 /// allow-list and the API can never drift apart.
