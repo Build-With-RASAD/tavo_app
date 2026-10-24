@@ -14,6 +14,7 @@ import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_state.dart';
 import 'package:tavo/feature/restaurant_panel/ui/widgets/order_card.dart';
 import 'package:tavo/feature/panel_invoice/ui/screens/panel_invoice_screen.dart';
+import 'package:tavo/feature/kitchen/ui/screens/kitchen_screen.dart';
 
 /// Staff panel orders: a status-filter chip row over the live list, with
 /// per-row status actions, a details sheet and an action sheet guarding the
@@ -169,6 +170,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ),
             ),
           ],
+          const Spacer(),
+          IconButton(
+            key: const ValueKey('orders_open_kitchen'),
+            tooltip: 'kitchen_display'.tr(),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    KitchenScreen(restaurantId: widget.restaurantId),
+              ),
+            ),
+            icon: const Icon(Icons.soup_kitchen_outlined),
+          ),
         ],
       ),
     );

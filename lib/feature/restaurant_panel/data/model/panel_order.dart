@@ -16,6 +16,10 @@ class PanelOrder {
     required this.paymentStatus,
     required this.orderStatus,
     required this.createdAt,
+    this.tableCode = '',
+    this.zone = '',
+    this.source = '',
+    this.sessionCode = '',
   });
 
   final String id;
@@ -29,6 +33,30 @@ class PanelOrder {
   final String paymentStatus;
   final String orderStatus;
   final String createdAt;
+
+  /// Table code for dine-in orders (`A12`); empty for delivery/pickup.
+  final String tableCode;
+
+  /// Table zone (`Terrace`); empty when the table has no zone.
+  final String zone;
+
+  /// `app`, `qr_table`, `counter` or `waiter`.
+  final String source;
+
+  /// The party code (`A12-1`) for QR table orders.
+  final String sessionCode;
+
+  bool get isTableOrder => source == 'qr_table' || tableCode.isNotEmpty;
+
+  DateTime? get placedAt => DateTime.tryParse(createdAt);
+
+  /// Whole minutes since the order was placed, for kitchen timers.
+  int minutesWaiting([DateTime? now]) {
+    final placed = placedAt;
+    if (placed == null) return 0;
+    final minutes = (now ?? DateTime.now()).difference(placed).inMinutes;
+    return minutes < 0 ? 0 : minutes;
+  }
 
   factory PanelOrder.fromJson(Map<String, dynamic> json) {
     final userId = _asMap(json['userId']);
@@ -54,6 +82,10 @@ class PanelOrder {
       paymentStatus: json['paymentStatus']?.toString() ?? '',
       orderStatus: json['orderStatus']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
+      tableCode: _asMap(json['tableId'])?['code']?.toString() ?? '',
+      zone: _asMap(json['tableId'])?['zone']?.toString() ?? '',
+      source: json['source']?.toString() ?? '',
+      sessionCode: _asMap(json['sessionId'])?['code']?.toString() ?? '',
     );
   }
 }
