@@ -120,6 +120,7 @@ class OrderLine {
     required this.quantity,
     required this.unitPrice,
     required this.lineTotal,
+    this.note = '',
   });
 
   final String name;
@@ -127,12 +128,16 @@ class OrderLine {
   final double unitPrice;
   final double lineTotal;
 
+  /// Per-dish guest note (`no onions`), distinct from the order-level note.
+  final String note;
+
   factory OrderLine.fromJson(Map<String, dynamic> json) {
     return OrderLine(
       name: json['name']?.toString() ?? '',
       quantity: _toInt(json['quantity']),
       unitPrice: _toDouble(json['unitPrice']),
       lineTotal: _toDouble(json['lineTotal']),
+      note: json['note']?.toString().trim() ?? '',
     );
   }
 }

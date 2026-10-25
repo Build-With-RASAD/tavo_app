@@ -100,5 +100,54 @@ void main() {
       expect(table.occupied, isNull);
       expect(table.positioned, isFalse);
     });
+
+    test('parses the live session and its pending requests', () {
+      final table = PanelPhysicalTable.fromJson({
+        '_id': 't3',
+        'tableTypeId': 'type1',
+        'code': 'B3',
+        'seats': 4,
+        'openSession': {
+          'id': 's1',
+          'code': 'AB12',
+          'status': 'open',
+          'guests': 2,
+          'subtotal': 100,
+          'tax': 15,
+          'total': 115,
+          'paid': 25,
+          'pendingRequests': 1,
+          'requests': [
+            {
+              'type': 'bill',
+              'guestLabel': 'Nora',
+              'createdAt': '2026-10-24T20:00:00.000Z',
+            },
+          ],
+        },
+      });
+
+      expect(table.openSession, isNotNull);
+      expect(table.openSession!.code, 'AB12');
+      expect(table.openSession!.guests, 2);
+      expect(table.openSession!.total, 115);
+      expect(table.openSession!.paid, 25);
+      expect(table.openSession!.pendingRequests, 1);
+      expect(table.openSession!.requests.single.type, 'bill');
+      expect(table.openSession!.remaining, closeTo(90, 0.001));
+      expect(table.hasOpenSession, isTrue);
+    });
+
+    test('a table without a live party decodes openSession as null', () {
+      final table = PanelPhysicalTable.fromJson({
+        '_id': 't4',
+        'tableTypeId': 'type1',
+        'code': 'B4',
+        'openSession': null,
+      });
+
+      expect(table.openSession, isNull);
+      expect(table.hasOpenSession, isFalse);
+    });
   });
 }

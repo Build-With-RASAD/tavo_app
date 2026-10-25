@@ -111,6 +111,32 @@ void main() {
       expect(order.isTableOrder, isFalse);
       expect(order.minutesWaiting(DateTime.utc(2026, 10, 24, 19, 0)), 0);
     });
+
+    test('keeps the guest note attached to each kitchen line', () {
+      final order = PanelOrder.fromJson({
+        '_id': 'o3',
+        'orderStatus': 'confirmed',
+        'menuItems': [
+          {
+            'name': 'Kabsa',
+            'quantity': 1,
+            'unitPrice': 50,
+            'lineTotal': 50,
+            'note': 'No onions',
+          },
+          {
+            'name': 'Tea',
+            'quantity': 2,
+            'unitPrice': 5,
+            'lineTotal': 10,
+            'note': '',
+          },
+        ],
+      });
+
+      expect(order.items.first.note, 'No onions');
+      expect(order.items.last.note, isEmpty);
+    });
   });
 
   group('KitchenCubit', () {

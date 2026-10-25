@@ -147,6 +147,7 @@ class OrderCard extends StatelessWidget {
                           Padding(
                             padding: EdgeInsets.only(bottom: 4.h),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
                                   width: 22.w,
@@ -165,13 +166,34 @@ class OrderCard extends StatelessWidget {
                                 ),
                                 SizedBox(width: 8.w),
                                 Expanded(
-                                  child: Text(
-                                    line.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyles.font14Black400Weight(
-                                      context,
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        line.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyles.font14Black400Weight(
+                                          context,
+                                        ),
+                                      ),
+                                      if (line.note.isNotEmpty)
+                                        Padding(
+                                          padding: EdgeInsets.only(top: 2.h),
+                                          child: Text(
+                                            line.note,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyles.font12DarkGray400Weight(
+                                              context,
+                                            ).copyWith(
+                                              color: const Color(0xFF8D6E00),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 SizedBox(width: 8.w),

@@ -49,6 +49,98 @@ class PanelTableType {
       );
 }
 
+/// One pending ask from the browser: the bill, the card machine, or a waiter.
+class PanelServiceRequestSummary {
+  const PanelServiceRequestSummary({
+    required this.type,
+    this.guestLabel = '',
+    this.createdAt = '',
+  });
+
+  final String type;
+  final String guestLabel;
+  final String createdAt;
+
+  factory PanelServiceRequestSummary.fromJson(Map<String, dynamic> json) =>
+      PanelServiceRequestSummary(
+        type: _text(json['type']),
+        guestLabel: _text(json['guestLabel']),
+        createdAt: _text(json['createdAt']),
+      );
+}
+
+/// The live party at a physical table. The backend summarizes the open
+/// [TableSession] without exposing guest bearer hashes; the panel only needs
+/// the code, party size, bill and pending requests to run the floor.
+class PanelSessionSummary {
+  const PanelSessionSummary({
+    required this.id,
+    required this.code,
+    this.status = 'open',
+    this.guests = 0,
+    this.subtotal = 0,
+    this.tax = 0,
+    this.total = 0,
+    this.paid = 0,
+    this.pendingRequests = 0,
+    this.requests = const [],
+    this.openedAt = '',
+    this.closedAt = '',
+  });
+
+  final String id;
+  final String code;
+  final String status;
+  final int guests;
+  final double subtotal;
+  final double tax;
+  final double total;
+  final double paid;
+  final int pendingRequests;
+  final List<PanelServiceRequestSummary> requests;
+  final String openedAt;
+  final String closedAt;
+
+  double get remaining {
+    final value = total - paid;
+    return value > 0 ? value : 0;
+  }
+
+  bool get hasPendingRequests => pendingRequests > 0 || requests.isNotEmpty;
+
+  factory PanelSessionSummary.fromJson(Map<String, dynamic> json) {
+    final rawRequests = json['requests'];
+    final requests = rawRequests is List
+        ? rawRequests
+            .whereType<Map>()
+            .map((entry) => PanelServiceRequestSummary.fromJson(
+                  Map<String, dynamic>.from(entry),
+                ))
+            .toList()
+        : const <PanelServiceRequestSummary>[];
+    final rawGuests = json['guests'];
+    final guests = rawGuests is List ? rawGuests.length : _int(rawGuests);
+    final rawPending = json['pendingRequests'];
+    final pendingRequests =
+        rawPending == null ? requests.length : _int(rawPending);
+
+    return PanelSessionSummary(
+      id: _text(json['_id'] ?? json['id']),
+      code: _text(json['code']),
+      status: _text(json['status']).isEmpty ? 'open' : _text(json['status']),
+      guests: guests,
+      subtotal: _doubleOrNull(json['subtotal']) ?? 0,
+      tax: _doubleOrNull(json['tax']) ?? 0,
+      total: _doubleOrNull(json['total']) ?? 0,
+      paid: _doubleOrNull(json['paid']) ?? 0,
+      pendingRequests: pendingRequests,
+      requests: requests,
+      openedAt: _text(json['openedAt']),
+      closedAt: _text(json['closedAt']),
+    );
+  }
+}
+
 class PanelPhysicalTable {
   const PanelPhysicalTable({
     required this.id,
@@ -58,6 +150,7 @@ class PanelPhysicalTable {
     required this.status,
     this.zone, // T28: free-form zone label (null = unassigned)
     this.occupied, // T28: server-side occupancy (null = field absent)
+    this.openSession, // QR web ordering: the live party, when one exists
     this.x,
     this.y,
   });
@@ -78,13 +171,19 @@ class PanelPhysicalTable {
   /// "not occupied" instead of inventing a third rule.
   final bool? occupied;
 
+  /// The live browser party at this table, or `null` when nobody is seated.
+  final PanelSessionSummary? openSession;
+
   final double? x; // null → tray (Task 4: unpositioned)
   final double? y;
 
   bool get positioned => x != null && y != null;
 
+  bool get hasOpenSession => openSession != null;
+
   /// The authoritative occupancy flag used for colours and the delete gate.
-  bool get isOccupied => occupied ?? false;
+  /// A live session counts even before its first order is sent.
+  bool get isOccupied => (occupied ?? false) || hasOpenSession;
 
   PanelPhysicalTable copyWith({
     String? code,
@@ -93,6 +192,8 @@ class PanelPhysicalTable {
     String? zone,
     bool clearZone = false,
     bool? occupied,
+    PanelSessionSummary? openSession,
+    bool clearOpenSession = false,
     double? x,
     double? y,
   }) =>
@@ -104,6 +205,8 @@ class PanelPhysicalTable {
         status: status ?? this.status,
         zone: clearZone ? null : (zone ?? this.zone),
         occupied: occupied ?? this.occupied,
+        openSession:
+            clearOpenSession ? null : (openSession ?? this.openSession),
         x: x ?? this.x,
         y: y ?? this.y,
       );
@@ -112,6 +215,7 @@ class PanelPhysicalTable {
     final pos = json['position'];
     final typeId = json['tableTypeId'];
     final rawOccupied = json['occupied'];
+    final rawSession = json['openSession'];
     return PanelPhysicalTable(
       id: _text(json['_id'] ?? json['id']),
       tableTypeId: typeId is Map ? _text(typeId['_id']) : _text(typeId),
@@ -120,6 +224,11 @@ class PanelPhysicalTable {
       status: _text(json['status']).isEmpty ? 'available' : _text(json['status']),
       zone: _localized(json['zone']).isEmpty ? null : _localized(json['zone']),
       occupied: rawOccupied is bool ? rawOccupied : null,
+      openSession: rawSession is Map
+          ? PanelSessionSummary.fromJson(
+              Map<String, dynamic>.from(rawSession),
+            )
+          : null,
       x: pos is Map ? _doubleOrNull(pos['x']) : null,
       y: pos is Map ? _doubleOrNull(pos['y']) : null,
     );

@@ -869,6 +869,15 @@ class _TableDetailSheetState extends State<_TableDetailSheet> {
                         .tr(namedArgs: {'status': _statusLabel(table)}),
                     style: TextStyles.font14Black400Weight(context),
                   ),
+                  if (table.openSession != null) ...[
+                    SizedBox(height: 12.h),
+                    _SessionCard(
+                      session: table.openSession!,
+                      busy: acting,
+                      canSettle: widget.manageable,
+                      onSettle: () => _settle(table.openSession!),
+                    ),
+                  ],
                   if (table.isOccupied) ...[
                     SizedBox(height: 4.h),
                     Text(
@@ -971,6 +980,15 @@ class _TableDetailSheetState extends State<_TableDetailSheet> {
     Navigator.of(context).pop();
   }
 
+  Future<void> _settle(PanelSessionSummary session) async {
+    final settled = await widget.cubit.settleTable(
+      widget.tableId,
+      amount: session.total,
+    );
+    if (!mounted || !settled) return;
+    Navigator.of(context).pop();
+  }
+
   /// Destructive delete: the action sheet confirms before the repo is hit.
   Future<void> _confirmDelete(PanelPhysicalTable table) async {
     final confirmed = await showModalBottomSheet<bool>(
@@ -1022,6 +1040,155 @@ class _TableDetailSheetState extends State<_TableDetailSheet> {
     await widget.cubit.deleteTable(table.id);
     if (!mounted) return;
     Navigator.of(context).pop();
+  }
+}
+
+/// The live browser party: party size, bill and the guest's asks. Colour and
+/// copy separate it from the table's permanent properties above.
+class _SessionCard extends StatelessWidget {
+  const _SessionCard({
+    required this.session,
+    required this.busy,
+    required this.canSettle,
+    required this.onSettle,
+  });
+
+  final PanelSessionSummary session;
+  final bool busy;
+  final bool canSettle;
+  final VoidCallback onSettle;
+
+  String _amount(double value) => value == value.roundToDouble()
+      ? '${value.round()}'
+      : value.toStringAsFixed(2);
+
+  String _requestLabel(String type) {
+    switch (type) {
+      case 'bill':
+        return 'tbl_request_bill'.tr();
+      case 'card_machine':
+        return 'tbl_request_card_machine'.tr();
+      case 'waiter':
+        return 'tbl_request_waiter'.tr();
+      default:
+        return type;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = 'currency'.tr();
+    return Container(
+      key: const Key('sheet_session'),
+      width: double.infinity,
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E8),
+        border: Border.all(color: const Color(0xFFE8D9AE)),
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Iconsax.people, size: 16, color: Color(0xFF8D6E00)),
+              SizedBox(width: 6.w),
+              Expanded(
+                child: Text(
+                  'tbl_session_guests'
+                      .tr(namedArgs: {'n': '${session.guests}'}),
+                  style: TextStyles.font14Black500Weight(context),
+                ),
+              ),
+              Text(
+                session.code,
+                key: const Key('sheet_session_code'),
+                style: TextStyles.font12DarkGray400Weight(context).copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            'tbl_session_total'.tr(
+              namedArgs: {'amount': '${_amount(session.total)} $currency'},
+            ),
+            key: const Key('sheet_session_total'),
+            style: TextStyles.font16Black500Weight(context),
+          ),
+          SizedBox(height: 2.h),
+          Text(
+            'tbl_session_paid'.tr(
+              namedArgs: {'amount': '${_amount(session.paid)} $currency'},
+            ),
+            style: TextStyles.font12DarkGray400Weight(context),
+          ),
+          if (session.hasPendingRequests) ...[
+            SizedBox(height: 6.h),
+            Text(
+              'tbl_session_pending'.tr(
+                namedArgs: {'n': '${session.pendingRequests}'},
+              ),
+              key: const Key('sheet_session_pending'),
+              style: TextStyles.font12DarkGray400Weight(context).copyWith(
+                color: ColorsManager.errorColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (session.requests.isNotEmpty) ...[
+              SizedBox(height: 6.h),
+              Wrap(
+                spacing: 6.w,
+                runSpacing: 6.h,
+                children: [
+                  for (final request in session.requests)
+                    Container(
+                      key: Key('sheet_request_${request.type}'),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(color: const Color(0xFFE8D9AE)),
+                      ),
+                      child: Text(
+                        _requestLabel(request.type),
+                        style: TextStyles.font12DarkGray400Weight(context)
+                            .copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+          if (canSettle) ...[
+            SizedBox(height: 10.h),
+            FilledButton.icon(
+              key: const Key('sheet_settle'),
+              onPressed: busy ? null : onSettle,
+              icon: busy
+                  ? SizedBox(
+                      width: 16.w,
+                      height: 16.w,
+                      child: const CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Iconsax.tick_circle, size: 18),
+              label: Text('tbl_settle'.tr()),
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              'tbl_settle_hint'.tr(),
+              style: TextStyles.font12DarkGray400Weight(context),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

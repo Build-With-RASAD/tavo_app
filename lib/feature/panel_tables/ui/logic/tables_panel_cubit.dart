@@ -120,7 +120,8 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
       if (isClosed) return;
       emit(s.copyWith(
         tables: [
-          for (final t in s.tables) if (t.id == table.id) updated else t
+          for (final t in s.tables)
+            if (t.id == table.id) _withLiveState(updated, table) else t
         ],
         clearAction: true,
       ));
@@ -188,9 +189,12 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
       );
       if (isClosed) return false;
       final base = _loaded(s);
+      final previous =
+          base.tables.firstWhere((t) => t.id == id, orElse: () => updated);
       emit(base.copyWith(
         tables: [
-          for (final t in base.tables) if (t.id == id) updated else t
+          for (final t in base.tables)
+            if (t.id == id) _withLiveState(updated, previous) else t
         ],
         clearAction: true,
         clearError: true,
@@ -216,6 +220,38 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
       final base = _loaded(s);
       emit(base.copyWith(
         tables: [for (final t in base.tables) if (t.id != id) t],
+        clearAction: true,
+        clearError: true,
+      ));
+      return true;
+    } catch (e) {
+      if (isClosed) return false;
+      emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      return false;
+    }
+  }
+
+  /// POST /physical-tables/:id/settle — staff recorded the cash/counter bill.
+  /// On success the floor is re-fetched so the live-session card disappears and
+  /// any other tab sees the same closed state. Returns `true` when settled.
+  Future<bool> settleTable(String id, {double? amount}) async {
+    final s = state;
+    if (s is! TablesPanelLoaded) return false;
+    final typeId = s.selectedTypeId;
+    if (typeId == null) return false;
+    emit(s.copyWith(actionId: id, clearError: true));
+    try {
+      await _repo.settleTable(
+        restaurantId: restaurantId,
+        id: id,
+        amount: amount,
+      );
+      if (isClosed) return false;
+      final tables = await _repo.getPhysicalTables(restaurantId, typeId);
+      if (isClosed) return false;
+      final base = _loaded(s);
+      emit(base.copyWith(
+        tables: tables,
         clearAction: true,
         clearError: true,
       ));
@@ -255,9 +291,12 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
         final updated = await run(id);
         if (isClosed) return;
         final base = _loaded(s);
+        final previous =
+            base.tables.firstWhere((t) => t.id == id, orElse: () => updated);
         emit(base.copyWith(
           tables: [
-            for (final t in base.tables) if (t.id == id) updated else t
+            for (final t in base.tables)
+              if (t.id == id) _withLiveState(updated, previous) else t
           ],
         ));
       }
@@ -268,6 +307,18 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
       emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
     }
   }
+
+  /// Mutation endpoints return a raw `PhysicalTable`; the live party is only
+  /// enriched on the physical-tables list. Keep the card the staff just saw
+  /// instead of making it vanish until the next poll.
+  PanelPhysicalTable _withLiveState(
+    PanelPhysicalTable updated,
+    PanelPhysicalTable previous,
+  ) =>
+      updated.copyWith(
+        occupied: updated.occupied ?? previous.occupied,
+        openSession: previous.openSession,
+      );
 
   TablesPanelLoaded _loaded(TablesPanelLoaded fallback) =>
       state is TablesPanelLoaded ? state as TablesPanelLoaded : fallback;

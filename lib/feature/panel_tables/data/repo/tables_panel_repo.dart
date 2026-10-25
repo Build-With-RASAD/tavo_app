@@ -148,6 +148,29 @@ class TablesPanelRepo {
     }
   }
 
+  /// POST {panelBase}/physical-tables/:id/settle — staff confirm the cash/
+  /// counter bill was collected. The backend closes the session and returns
+  /// its sanitized summary. 400/404/409 surface through [parseDioError].
+  Future<PanelSessionSummary> settleTable({
+    required String restaurantId,
+    required String id,
+    double? amount,
+  }) async {
+    try {
+      final res = await _api.post(
+        '${ApiConstants.panelBase}/physical-tables/$id/settle?restaurantId=$restaurantId',
+        data: {
+          if (amount != null) 'amount': amount,
+        },
+      );
+      return PanelSessionSummary.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
   /// DELETE {panelBase}/physical-tables/:id → whether the backend deleted it.
   /// 409 (open order / active reservation) surfaces as a parsed error.
   Future<bool> deletePhysicalTable({

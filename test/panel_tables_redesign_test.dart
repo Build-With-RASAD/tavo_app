@@ -84,10 +84,13 @@ class _FakeTablesRepo extends TablesPanelRepo {
       status: status,
       zone: t.zone,
       occupied: t.occupied,
+      openSession: t.openSession,
       x: t.x,
       y: t.y,
     );
-    return tables[i];
+    // The status endpoint returns the raw PhysicalTable; the live session is
+    // only enriched on the physical-tables list. Model that honestly.
+    return tables[i].copyWith(clearOpenSession: true);
   }
 
   @override
@@ -132,10 +135,12 @@ class _FakeTablesRepo extends TablesPanelRepo {
       status: t.status,
       zone: clearZone ? null : (zone ?? t.zone),
       occupied: t.occupied,
+      openSession: t.openSession,
       x: t.x,
       y: t.y,
     );
-    return tables[i];
+    // Same raw-response shape as the status endpoint.
+    return tables[i].copyWith(clearOpenSession: true);
   }
 
   @override
@@ -144,6 +149,30 @@ class _FakeTablesRepo extends TablesPanelRepo {
     calls.add('delete:$id');
     tables = tables.where((t) => t.id != id).toList();
     return true;
+  }
+
+  @override
+  Future<PanelSessionSummary> settleTable({
+    required String restaurantId,
+    required String id,
+    double? amount,
+  }) async {
+    calls.add('settle:$id:${amount ?? '-'}');
+    final i = tables.indexWhere((t) => t.id == id);
+    final session = tables[i].openSession!;
+    tables[i] = tables[i].copyWith(clearOpenSession: true);
+    return PanelSessionSummary(
+      id: session.id,
+      code: session.code,
+      status: 'closed',
+      guests: session.guests,
+      subtotal: session.subtotal,
+      tax: session.tax,
+      total: session.total,
+      paid: session.total,
+      pendingRequests: session.pendingRequests,
+      requests: session.requests,
+    );
   }
 }
 
@@ -316,6 +345,127 @@ void main() {
     await tester.tap(find.byKey(const Key('sheet_open_orders')));
     await tester.pumpAndSettle();
     expect(opened, 1);
+  });
+
+  testWidgets('live session card shows the bill and settles through the cubit',
+      (tester) async {
+    final repo = _FakeTablesRepo()
+      ..types = [_type()]
+      ..tables = [
+        const PanelPhysicalTable(
+          id: 'p1',
+          tableTypeId: 't1',
+          code: 'IN-1',
+          seats: 4,
+          status: 'available',
+          x: 0.4,
+          y: 0.4,
+          openSession: PanelSessionSummary(
+            id: 's1',
+            code: 'AB12',
+            status: 'open',
+            guests: 2,
+            subtotal: 100,
+            tax: 15,
+            total: 115,
+            paid: 25,
+            pendingRequests: 1,
+            requests: [
+              PanelServiceRequestSummary(
+                type: 'bill',
+                guestLabel: 'Nora',
+                createdAt: '2026-10-24T20:00:00.000Z',
+              ),
+            ],
+          ),
+        ),
+      ];
+    await _pump(tester, repo);
+
+    await tester.tap(find.byKey(const Key('table_p1')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('sheet_session')), findsOneWidget);
+    expect(find.text('AB12'), findsOneWidget);
+    expect(find.byKey(const Key('sheet_session_pending')), findsOneWidget);
+    expect(find.byKey(const Key('sheet_settle')), findsOneWidget);
+    expect(repo.calls.where((c) => c == 'getPhysical:t1').length, 1);
+
+    await tester.tap(find.byKey(const Key('sheet_settle')));
+    await tester.pumpAndSettle();
+
+    expect(repo.calls, contains('settle:p1:115.0'));
+    expect(repo.calls.where((c) => c == 'getPhysical:t1').length, 2);
+    expect(find.byKey(const Key('table_sheet')), findsNothing);
+    expect(find.byKey(const Key('table_p1')), findsOneWidget);
+  });
+
+  testWidgets('a status edit keeps the live session card', (tester) async {
+    final repo = _FakeTablesRepo()
+      ..types = [_type()]
+      ..tables = [
+        const PanelPhysicalTable(
+          id: 'p1',
+          tableTypeId: 't1',
+          code: 'IN-1',
+          seats: 4,
+          status: 'available',
+          x: 0.4,
+          y: 0.4,
+          openSession: PanelSessionSummary(
+            id: 's1',
+            code: 'AB12',
+            guests: 2,
+            total: 115,
+            paid: 0,
+          ),
+        ),
+      ];
+    await _pump(tester, repo);
+
+    await tester.tap(find.byKey(const Key('table_p1')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('sheet_toggle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sheet_toggle')));
+    await tester.pumpAndSettle();
+
+    expect(repo.calls, contains('status:p1:unavailable'));
+    expect(find.byKey(const Key('sheet_session')), findsOneWidget);
+    expect(find.text('AB12'), findsOneWidget);
+  });
+
+  testWidgets('view-only staff see the live session but cannot settle it',
+      (tester) async {
+    final repo = _FakeTablesRepo()
+      ..types = [_type()]
+      ..tables = [
+        const PanelPhysicalTable(
+          id: 'p1',
+          tableTypeId: 't1',
+          code: 'IN-1',
+          seats: 4,
+          status: 'available',
+          x: 0.4,
+          y: 0.4,
+          openSession: PanelSessionSummary(
+            id: 's1',
+            code: 'AB12',
+            status: 'open',
+            guests: 2,
+            total: 115,
+            paid: 0,
+            pendingRequests: 0,
+          ),
+        ),
+      ];
+    await _pump(tester, repo, venue: _viewerVenue);
+
+    await tester.tap(find.byKey(const Key('table_p1')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('sheet_session')), findsOneWidget);
+    expect(find.byKey(const Key('sheet_settle')), findsNothing);
   });
 
   testWidgets('view-only staff get no edit toggle, save, add or sheet actions',
