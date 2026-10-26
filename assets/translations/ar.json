@@ -796,5 +796,6 @@
   "feedback_status_read": "مقروءة",
   "feedback_status_resolved": "محلولة",
   "feedback_previous": "السابق",
-  "feedback_next": "التالي"
+  "feedback_next": "التالي",
+  "cancel_order_title": "إلغاء هذا الطلب؟"
 }

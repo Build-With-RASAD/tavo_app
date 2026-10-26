@@ -1,31 +1,28 @@
 // lib/feature/restaurant_panel/ui/screens/orders_screen.dart
+//
+// Staff panel orders: the live board, a status filter row, per-row status
+// actions, and two sheets (details, destructive cancel).
+//
+// Visual language is the panel's website kit (`core/ui/tavo_web`) — the same
+// gold, hairlines and pill geometry as Tables, Menu and Feedback. Behaviour is
+// unchanged: the cubit owns every read/write, the list pages as you scroll,
+// and a failed action never removes a row.
 
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:tavo/core/di/service_locator.dart';
-import 'package:tavo/core/theme/colors.dart';
-import 'package:tavo/core/theme/text_styles.dart';
+import 'package:tavo/core/ui/tavo_web/tavo_web.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
-import 'package:tavo/core/widgets/status_badge.dart';
+import 'package:tavo/feature/panel_invoice/ui/screens/panel_invoice_screen.dart';
+import 'package:tavo/feature/kitchen/ui/screens/kitchen_screen.dart';
 import 'package:tavo/feature/restaurant_panel/data/model/panel_order.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_cubit.dart';
 import 'package:tavo/feature/restaurant_panel/ui/logic/orders_state.dart';
 import 'package:tavo/feature/restaurant_panel/ui/widgets/order_card.dart';
-import 'package:tavo/feature/panel_invoice/ui/screens/panel_invoice_screen.dart';
-import 'package:tavo/feature/kitchen/ui/screens/kitchen_screen.dart';
-import 'package:iconsax_flutter/iconsax_flutter.dart';
 
-/// Staff panel orders: a status-filter chip row over the live list, with
-/// per-row status actions, a details sheet and an action sheet guarding the
-/// destructive cancel.
-///
-/// Builds its own [OrdersCubit] through get_it (the shell only supplies the
-/// restaurant id) and drives the three async states with [ListSkeleton] /
-/// [ErrorStateView] / [EmptyStateView] / content, mirroring
-/// `DashboardScreen`'s wiring. Action failures surface as a SnackBar while
-/// every row stays on screen (`OrdersLoaded.actionError`).
+/// Staff panel orders.
 ///
 /// [statusFilter] is the status the screen opens with — the dashboard hands
 /// the status of the pipeline stage that was tapped, so a number in the
@@ -58,7 +55,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   /// The filter row: `all` plus every status the backend accepts
   /// (`GET /orders?status=`).
-  static const List<String> _filters = [
+  static const List<String> _filters = <String>[
     'all',
     'pending',
     'confirmed',
@@ -72,7 +69,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void initState() {
     super.initState();
     _cubit = getIt<OrdersCubit>(param1: widget.restaurantId);
-    final filter = widget.statusFilter;
+    final String? filter = widget.statusFilter;
     // One request: `setFilter` sets the filter and loads page 1 itself.
     if (filter == null) {
       _cubit.load();
@@ -104,125 +101,53 @@ class _OrdersScreenState extends State<OrdersScreen> {
       child: BlocConsumer<OrdersCubit, OrdersState>(
         listener: (context, state) {
           if (state is OrdersLoaded && state.actionError != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.actionError!),
-                backgroundColor: const Color(0xFFC62828),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(state.actionError!),
+                  backgroundColor: TavoColors.destructiveSolid,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(TavoRadii.lg),
+                  ),
+                  margin: const EdgeInsets.all(TavoSpace.lg),
                 ),
-                margin: EdgeInsets.all(16.w),
-              ),
-            );
+              );
           }
         },
         builder: (context, state) {
-          final cubit = context.read<OrdersCubit>();
-          final filter = state is OrdersLoaded ? state.filter : null;
+          final OrdersCubit cubit = context.read<OrdersCubit>();
+          final String? filter = state is OrdersLoaded ? state.filter : null;
 
           return Scaffold(
+            backgroundColor: TavoColors.background,
             body: SafeArea(
               child: Column(
-                children: [
-                  _buildHeader(context, filter),
-                  _buildFilters(context, cubit, filter),
+                children: <Widget>[
+                  _Header(
+                    filter: filter,
+                    onOpenKitchen: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            KitchenScreen(restaurantId: widget.restaurantId),
+                      ),
+                    ),
+                  ),
+                  _FilterRow(
+                    active: filter,
+                    onSelected: (String? next) {
+                      cubit.setFilter(next);
+                      // The owner of the screen keeps its own filter in sync.
+                      widget.onStatusFilterChanged?.call(next);
+                    },
+                  ),
                   Expanded(child: _buildBody(context, cubit, state)),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, String? filter) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
-      child: Row(
-        children: [
-          Text('orders'.tr(), style: TextStyles.font20Black500Weight(context)),
-          if (filter != null) ...[
-            SizedBox(width: 8.w),
-            // The active filter is named in the header — the list is never
-            // silently narrowed.
-            Container(
-              key: const ValueKey('orders_active_filter'),
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                color: ColorsManager.primary100.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(20.r),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Iconsax.filter,
-                    size: 14.r,
-                    color: ColorsManager.primary500,
-                  ),
-                  SizedBox(width: 4.w),
-                  Text(
-                    orderStatusLabelKey(filter).tr(),
-                    style: TextStyles.font12Primary400400Weight(context),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const Spacer(),
-          IconButton(
-            key: const ValueKey('orders_open_kitchen'),
-            tooltip: 'kitchen_display'.tr(),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    KitchenScreen(restaurantId: widget.restaurantId),
-              ),
-            ),
-            icon: const Icon(Iconsax.cup),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilters(
-    BuildContext context,
-    OrdersCubit cubit,
-    String? filter,
-  ) {
-    return Padding(
-      padding: EdgeInsets.only(top: 12.h, bottom: 4.h),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        child: Row(
-          children: [
-            for (final status in _filters)
-              Padding(
-                padding: EdgeInsets.only(right: 8.w),
-                child: ChoiceChip(
-                  // Ruling: chips are addressed by key — labels collide with
-                  // the status badges of matching rows.
-                  key: ValueKey('orders_filter_$status'),
-                  label: Text(
-                    status == 'all'
-                        ? 'all'.tr()
-                        : orderStatusLabelKey(status).tr(),
-                  ),
-                  selected: (filter ?? 'all') == status,
-                  onSelected: (_) {
-                    final next = status == 'all' ? null : status;
-                    cubit.setFilter(next);
-                    // The owner of the screen keeps its own filter in sync.
-                    widget.onStatusFilterChanged?.call(next);
-                  },
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -246,8 +171,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
       return _PaginatedOrdersList(
         cubit: cubit,
         state: state,
-        onAction: (order, target) => _handleAction(context, order, target),
-        onOpenDetails: (order) => _openDetails(context, order),
+        onAction: (PanelOrder order, String target) =>
+            _handleAction(context, order, target),
+        onOpenDetails: (PanelOrder order) => _openDetails(context, order),
       );
     }
     // OrdersInitial / OrdersLoading.
@@ -255,42 +181,157 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   /// Runs one row action. Non-destructive targets go straight to the cubit;
-  /// `cancelled` first confirms through the [CancelOrderSheet] action sheet
-  /// (spec UI bar: destructive actions always confirm).
+  /// `cancelled` first confirms through [CancelOrderSheet] (destructive
+  /// actions always confirm).
   Future<void> _handleAction(
     BuildContext context,
     PanelOrder order,
     String target,
   ) async {
     if (target == 'cancelled') {
-      final confirmed = await showModalBottomSheet<bool>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (_) => CancelOrderSheet(order: order),
-      );
-      if (confirmed != true) return;
+      final bool confirmed =
+          await TavoSheet.show<bool>(
+            context,
+            title: 'cancel_order_title'.tr(),
+            child: CancelOrderSheet(order: order),
+          ) ??
+          false;
+      if (!confirmed) return;
     }
     if (!context.mounted) return;
     context.read<OrdersCubit>().updateStatus(order.id, target);
   }
 
   void _openDetails(BuildContext context, PanelOrder order) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) =>
-          OrderDetailsSheet(order: order, restaurantId: widget.restaurantId),
+    TavoSheet.show<void>(
+      context,
+      title: 'order_details'.tr(),
+      child: OrderDetailsSheet(
+        order: order,
+        restaurantId: widget.restaurantId,
+      ),
     );
   }
 }
 
+// ------------------------------------------------------------------- header
+
+class _Header extends StatelessWidget {
+  const _Header({required this.filter, required this.onOpenKitchen});
+
+  final String? filter;
+  final VoidCallback onOpenKitchen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        TavoSpace.lg,
+        TavoSpace.lg,
+        TavoSpace.lg,
+        TavoSpace.sm,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('orders'.tr(), style: TavoType.h2),
+                if (filter != null) ...<Widget>[
+                  const SizedBox(height: TavoSpace.xs),
+                  // The active filter is named in the header — the list is
+                  // never silently narrowed.
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TavoStatusPill(
+                      key: const ValueKey<String>('orders_active_filter'),
+                      label: orderStatusLabelKey(filter!).tr(),
+                      tone: orderStatusTone(filter!),
+                      size: TavoPillSize.small,
+                      leading: const Icon(Iconsax.filter, size: 11),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: TavoSpace.sm),
+          TavoButton.ghost(
+            key: const ValueKey<String>('orders_open_kitchen'),
+            label: 'kitchen_display'.tr(),
+            size: TavoButtonSize.compact,
+            leading: const Icon(Iconsax.cup, size: 15),
+            onPressed: onOpenKitchen,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------ filters
+
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({required this.active, required this.onSelected});
+
+  final String? active;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: TavoSpace.lg,
+        ),
+        itemCount: _OrdersScreenState._filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: TavoSpace.xs),
+        itemBuilder: (BuildContext context, int index) {
+          final String status = _OrdersScreenState._filters[index];
+          final bool selected = (active ?? 'all') == status;
+          return ChoiceChip(
+            // Chips are addressed by key — labels collide with the status
+            // badges of matching rows.
+            key: ValueKey<String>('orders_filter_$status'),
+            label: Text(
+              status == 'all'
+                  ? 'all'.tr()
+                  : orderStatusLabelKey(status).tr(),
+            ),
+            selected: selected,
+            showCheckmark: false,
+            onSelected: (_) => onSelected(status == 'all' ? null : status),
+            backgroundColor: TavoColors.muted,
+            selectedColor: TavoColors.foreground,
+            side: BorderSide(
+              color: selected ? TavoColors.foreground : TavoColors.border,
+            ),
+            shape: const StadiumBorder(),
+            labelStyle: TavoType.label.copyWith(
+              color: selected ? TavoColors.background : TavoColors.foreground,
+            ),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: TavoSpace.md,
+              vertical: TavoSpace.sm,
+            ),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// --------------------------------------------------------------------- list
+
 /// The order list with infinite scroll (I-1): a [ScrollController] fires
 /// `cubit.loadMore` when the viewport comes within ~200px of the list end,
 /// guarded by the state's `hasNext` and a local in-flight flag so a burst
-/// of scroll events can only ever start one page request. While the next
-/// page is appending, a spinner footer is built as the last row; the cubit
-/// keeps every row of the visible list on screen throughout.
+/// of scroll events can only ever start one page request.
 class _PaginatedOrdersList extends StatefulWidget {
   const _PaginatedOrdersList({
     required this.cubit,
@@ -333,13 +374,13 @@ class _PaginatedOrdersListState extends State<_PaginatedOrdersList> {
   /// when no page append is already running.
   void _onScroll() {
     if (_loadingMore) return;
-    final position = _controller.position;
+    final ScrollPosition position = _controller.position;
     if (position.pixels < position.maxScrollExtent - 200) return;
     _loadNextPage();
   }
 
   Future<void> _loadNextPage() async {
-    final current = widget.cubit.state;
+    final OrdersState current = widget.cubit.state;
     if (current is! OrdersLoaded || !current.hasNext || _loadingMore) return;
     setState(() => _loadingMore = true);
     try {
@@ -351,38 +392,44 @@ class _PaginatedOrdersListState extends State<_PaginatedOrdersList> {
 
   @override
   Widget build(BuildContext context) {
-    final orders = widget.state.orders;
+    final List<PanelOrder> orders = widget.state.orders;
 
     return RefreshIndicator(
       onRefresh: () => widget.cubit.load(),
       child: ListView.builder(
+        key: const ValueKey<String>('orders_list'),
         controller: _controller,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.all(16.w),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          TavoSpace.lg,
+          TavoSpace.sm,
+          TavoSpace.lg,
+          TavoSpace.xl,
+        ),
         itemCount: orders.length + (_loadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
+        itemBuilder: (BuildContext context, int index) {
           if (index >= orders.length) {
             // Footer: the next page is appending right now.
-            return Padding(
-              key: const ValueKey('orders_load_more_footer'),
-              padding: EdgeInsets.only(top: 4.h),
-              child: const Center(
+            return const Padding(
+              key: ValueKey<String>('orders_load_more_footer'),
+              padding: EdgeInsetsDirectional.only(top: TavoSpace.xs),
+              child: Center(
                 child: SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             );
           }
-          final order = orders[index];
+          final PanelOrder order = orders[index];
           return Padding(
-            padding: EdgeInsets.only(bottom: 12.h),
+            padding: const EdgeInsetsDirectional.only(bottom: TavoSpace.sm),
             child: OrderCard(
-              key: ValueKey('order_card_${order.id}'),
+              key: ValueKey<String>('order_card_${order.id}'),
               order: order,
               acting: widget.state.actingId == order.id,
-              onAction: (target) => widget.onAction(order, target),
+              onAction: (String target) => widget.onAction(order, target),
               onTap: () => widget.onOpenDetails(order),
             ),
           );
@@ -392,9 +439,12 @@ class _PaginatedOrdersListState extends State<_PaginatedOrdersList> {
   }
 }
 
-/// Full breakdown of one order: header + status badge, line items
-/// (name, `qty × unitPrice`, line total), subtotal / tax / total rows, the
-/// payment pill and a close button.
+// ------------------------------------------------------------------ details
+
+/// Full breakdown of one order: line items (`qty × unit price` → line total),
+/// subtotal / tax / total, the payment pill and the invoice entry.
+///
+/// Rendered inside [TavoSheet]; the sheet owns the title, this owns the body.
 class OrderDetailsSheet extends StatelessWidget {
   const OrderDetailsSheet({super.key, required this.order, this.restaurantId});
 
@@ -406,103 +456,99 @@ class OrderDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final paymentKey = paymentStatusLabelKey(order.paymentStatus);
+    final String? paymentKey = paymentStatusLabelKey(order.paymentStatus);
+    final String customer = <String>[
+      if (order.customerName.isNotEmpty) order.customerName,
+      if (order.customerPhone.isNotEmpty) order.customerPhone,
+    ].join(' • ');
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
-      decoration: BoxDecoration(
-        color: ColorsManager.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'order_details'.tr(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8.w),
-                StatusBadge(status: order.orderStatus),
-              ],
-            ),
-            SizedBox(height: 4.h),
-            Text(
-              order.orderNumber,
-              style: TextStyles.font12DarkGray400Weight(context),
-            ),
-            if (order.customerName.isNotEmpty) ...[
-              SizedBox(height: 2.h),
-              Text(
-                order.customerName,
-                style: TextStyles.font12DarkGray400Weight(context),
-              ),
-            ],
-            SizedBox(height: 16.h),
-            for (final line in order.items) _LineRow(line: line),
-            const Divider(height: 24),
-            _AmountRow(labelKey: 'subtotal', value: order.subtotal),
-            _AmountRow(labelKey: 'tax', value: order.tax),
-            _AmountRow(
-              labelKey: 'total',
-              value: order.totalPrice,
-              emphasize: true,
-            ),
-            if (paymentKey != null) ...[
-              SizedBox(height: 12.h),
-              StatusBadge(status: order.paymentStatus, label: paymentKey.tr()),
-            ],
-            SizedBox(height: 20.h),
-            // Task 27 invoice entry: per-order button pushing the ZATCA
-            // invoice screen (print + share). Hidden when the venue id is
-            // unknown so the sheet never navigates to a venue-less invoice.
-            if ((restaurantId ?? '').isNotEmpty) ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  key: ValueKey('order_invoice_${order.id}'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PanelInvoiceScreen(
-                          orderId: order.id,
-                          restaurantId: restaurantId!,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Iconsax.receipt_2),
-                  label: Text('inv_title'.tr()),
+    return ListView(
+      shrinkWrap: true,
+      padding: EdgeInsets.zero,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                order.orderNumber,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TavoType.title.copyWith(
+                  fontFeatures: TavoType.tabular,
                 ),
               ),
-              SizedBox(height: 8.h),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('close'.tr()),
-              ),
+            ),
+            const SizedBox(width: TavoSpace.sm),
+            TavoStatusPill(
+              label: order.orderStatus.tr(),
+              tone: orderStatusTone(order.orderStatus),
+              size: TavoPillSize.small,
             ),
           ],
         ),
-      ),
+        if (customer.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 2),
+          Text(
+            customer,
+            style: TavoType.micro.copyWith(color: TavoColors.mutedForeground),
+          ),
+        ],
+        const SizedBox(height: TavoSpace.lg),
+        for (final OrderLine line in order.items) _LineRow(line: line),
+        const Divider(height: TavoSpace.xl),
+        _AmountRow(labelKey: 'subtotal', value: order.subtotal),
+        _AmountRow(labelKey: 'tax', value: order.tax),
+        _AmountRow(
+          labelKey: 'total',
+          value: order.totalPrice,
+          emphasize: true,
+        ),
+        if (paymentKey != null) ...<Widget>[
+          const SizedBox(height: TavoSpace.md),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TavoStatusPill(
+              label: paymentKey.tr(),
+              tone: orderStatusTone(order.paymentStatus),
+              size: TavoPillSize.small,
+            ),
+          ),
+        ],
+        const SizedBox(height: TavoSpace.xl),
+        // Per-order invoice entry: pushes the ZATCA invoice screen. Hidden
+        // when the venue id is unknown so it can never open a venue-less
+        // invoice.
+        if ((restaurantId ?? '').isNotEmpty) ...<Widget>[
+          TavoButton.secondary(
+            key: ValueKey<String>('order_invoice_${order.id}'),
+            label: 'inv_title'.tr(),
+            expand: true,
+            leading: const Icon(Iconsax.receipt_2, size: 16),
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PanelInvoiceScreen(
+                    orderId: order.id,
+                    restaurantId: restaurantId!,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: TavoSpace.sm),
+        ],
+        TavoButton.ghost(
+          label: 'close'.tr(),
+          expand: true,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
     );
   }
 }
 
-/// Action sheet for the destructive cancel: names the order and only sends
+/// Body of the destructive cancel sheet: names the order and only sends
 /// `true` back when the confirmation button is tapped.
 class CancelOrderSheet extends StatelessWidget {
   const CancelOrderSheet({super.key, required this.order});
@@ -511,59 +557,46 @@ class CancelOrderSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
-      decoration: BoxDecoration(
-        color: ColorsManager.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'cancel'.tr(),
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          order.customerName.isEmpty
+              ? order.orderNumber
+              : '${order.orderNumber} • ${order.customerName}',
+          style: TavoType.bodySmall.copyWith(
+            color: TavoColors.mutedForeground,
           ),
-          SizedBox(height: 6.h),
-          Text(
-            '${order.orderNumber} • ${order.customerName}',
-            style: TextStyles.font12DarkGray400Weight(context),
-          ),
-          SizedBox(height: 20.h),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('close'.tr()),
-                ),
+        ),
+        const SizedBox(height: TavoSpace.lg),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: TavoButton.ghost(
+                label: 'close'.tr(),
+                expand: true,
+                onPressed: () => Navigator.of(context).pop(),
               ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: ElevatedButton(
-                  key: const ValueKey('cancel_order_confirm'),
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorsManager.redButton,
-                    foregroundColor: ColorsManager.white,
-                  ),
-                  child: Text('cancel'.tr()),
-                ),
+            ),
+            const SizedBox(width: TavoSpace.sm),
+            Expanded(
+              child: TavoButton.destructive(
+                key: const ValueKey<String>('cancel_order_confirm'),
+                label: 'cancel'.tr(),
+                expand: true,
+                onPressed: () => Navigator.of(context).pop(true),
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-/// One line item row of the details sheet: name + `qty × unitPrice` on the
-/// left, the line total on the right.
+/// One line item row: name + `qty × unitPrice` on the leading side, the line
+/// total on the trailing side.
 class _LineRow extends StatelessWidget {
   const _LineRow({required this.line});
 
@@ -572,30 +605,59 @@ class _LineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 10.h),
+      padding: const EdgeInsetsDirectional.only(bottom: TavoSpace.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: TavoColors.muted,
+              borderRadius: BorderRadius.circular(TavoRadii.sm),
+            ),
+            child: Text(
+              '${line.quantity}',
+              style: TavoType.micro.copyWith(
+                fontWeight: FontWeight.w700,
+                fontFeatures: TavoType.tabular,
+              ),
+            ),
+          ),
+          const SizedBox(width: TavoSpace.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  line.name,
-                  style: TextStyles.font14Black400Weight(context),
-                ),
-                SizedBox(height: 2.h),
+              children: <Widget>[
+                Text(line.name, style: TavoType.bodySmall),
+                const SizedBox(height: 2),
                 Text(
                   '${line.quantity} × ${formatOrderAmount(line.unitPrice)}',
-                  style: TextStyles.font12DarkGray400Weight(context),
+                  style: TavoType.micro.copyWith(
+                    color: TavoColors.mutedForeground,
+                  ),
                 ),
+                if (line.note.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      line.note,
+                      style: TavoType.micro.copyWith(
+                        color: TavoColors.brand800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          SizedBox(width: 12.w),
+          const SizedBox(width: TavoSpace.md),
           Text(
             formatOrderAmount(line.lineTotal),
-            style: TextStyles.font14Black500Weight(context),
+            style: TavoType.label.copyWith(
+              fontFeatures: TavoType.tabular,
+            ),
           ),
         ],
       ),
@@ -603,7 +665,7 @@ class _LineRow extends StatelessWidget {
   }
 }
 
-/// One `label … amount` row (subtotal / tax / total) of the details sheet.
+/// One `label … amount` row (subtotal / tax / total).
 class _AmountRow extends StatelessWidget {
   const _AmountRow({
     required this.labelKey,
@@ -617,14 +679,14 @@ class _AmountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = emphasize
-        ? TextStyles.font16Black500Weight(context)
-        : TextStyles.font14DarkGray400Weight(context);
+    final TextStyle style = emphasize
+        ? TavoType.title.copyWith(fontFeatures: TavoType.tabular)
+        : TavoType.bodySmall.copyWith(color: TavoColors.mutedForeground);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: 6.h),
+      padding: const EdgeInsetsDirectional.only(bottom: TavoSpace.xs),
       child: Row(
-        children: [
+        children: <Widget>[
           Expanded(child: Text(labelKey.tr(), style: style)),
           Text(formatOrderAmount(value), style: style),
         ],

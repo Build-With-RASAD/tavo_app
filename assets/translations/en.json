@@ -796,5 +796,6 @@
   "feedback_status_read": "Read",
   "feedback_status_resolved": "Resolved",
   "feedback_previous": "Previous",
-  "feedback_next": "Next"
+  "feedback_next": "Next",
+  "cancel_order_title": "Cancel this order?"
 }

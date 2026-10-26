@@ -372,9 +372,14 @@ testWidgets('served filter chip exists and filters through the repo', (
     expect(find.byKey(const ValueKey('order_card_90')), findsNothing);
 
     // The list is taller than one drag — drag until the viewport reaches
-    // the end (the trigger fires within ~200px of the bottom).
+    // the end (the trigger fires within ~200px of the bottom). The vertical
+    // board is addressed by key: the status chip row is a horizontal
+    // ListView too, so `byType(ListView).first` is no longer the board.
     for (var i = 0; i < 5 && !repo.pagesServed.contains(2); i++) {
-      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.drag(
+        find.byKey(const ValueKey('orders_list')),
+        const Offset(0, -2000),
+      );
       await tester.pump();
     }
 
@@ -394,7 +399,10 @@ testWidgets('served filter chip exists and filters through the repo', (
 
     // Second drag: reveal the appended tail and re-arm the trigger (a
     // no-op now that hasNext is false).
-    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+    await tester.drag(
+      find.byKey(const ValueKey('orders_list')),
+      const Offset(0, -600),
+    );
     await tester.pumpAndSettle();
 
     expect(
