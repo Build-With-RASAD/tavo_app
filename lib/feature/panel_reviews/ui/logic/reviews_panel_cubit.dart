@@ -1,17 +1,20 @@
 // ui/logic/reviews_panel_cubit.dart
+//
+// The feedback inbox: ratings, complaints and suggestions in one paged list,
+// with the overview that explains them.
+//
+// Two reads per load, both independent: the summary (averages, rows per type,
+// open complaints) and one page of the active tab. A failed summary leaves the
+// list readable; only a failed page is a real error. Filters are server-side —
+// `type` and `status` go on the wire, never through a local `where`.
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../data/model/experience_summary.dart';
 import '../../data/model/review_models.dart';
 import '../../data/repo/reviews_panel_repo.dart';
 
 part 'reviews_panel_state.dart';
 
-/// Staff panel reviews list: server-side rating filter, page navigation and
-/// per-row owner responses.
-///
-/// Error style mirrors `PanelMenuCubit` (plain strings): `load` failures emit
-/// [ReviewsPanelError]; mutation failures keep the loaded list and surface a
-/// transient [ReviewsPanelLoaded.actionError] beside it.
 class ReviewsPanelCubit extends Cubit<ReviewsPanelState> {
   ReviewsPanelCubit(this._repo, {required this.restaurantId})
       : super(const ReviewsPanelInitial());
@@ -22,22 +25,21 @@ class ReviewsPanelCubit extends Cubit<ReviewsPanelState> {
   Future<void> load() async {
     if (isClosed) return;
     emit(const ReviewsPanelLoading());
-    try {
-      // The summary is decoration on top of the list: if it fails, the
-      // reviews still render (and the card shows its empty state).
-      final summaryFuture = _repo
-          .getExperienceSummary(restaurantId)
-          .then<ExperienceSummary?>((value) => value)
-          .catchError((Object _) => null);
 
-      final out = await _repo.getReviews(restaurantId);
-      final summary = await summaryFuture;
+    final Future<ExperienceSummary?> summaryFuture = _repo
+        .getExperienceSummary(restaurantId)
+        .then<ExperienceSummary?>((ExperienceSummary value) => value)
+        .catchError((Object _) => null);
+
+    try {
+      final ExperiencePage page = await _repo.getFeedback(restaurantId);
+      final ExperienceSummary? summary = await summaryFuture;
       if (isClosed) return;
       emit(ReviewsPanelLoaded(
-        reviews: out.reviews,
-        page: out.page,
-        pages: out.pages,
-        total: out.total,
+        items: page.items,
+        page: page.page,
+        pages: page.pages,
+        total: page.total,
         summary: summary,
       ));
     } catch (e) {
@@ -46,61 +48,131 @@ class ReviewsPanelCubit extends Cubit<ReviewsPanelState> {
     }
   }
 
-  /// Server-side rating filter (`null` = all ratings): refetches from page 1.
-  Future<void> setRating(int? rating) async {
-    final s = state;
-    if (s is! ReviewsPanelLoaded || s.filterRating == rating) return;
-    emit(s.copyWith(filterRating: rating, clearFilter: rating == null));
-    await _reload(page: 1);
+  /// Switch tab: `null` = everything. Refetches from page one.
+  Future<void> setType(ExperienceType? type) async {
+    final ReviewsPanelState s = state;
+    if (s is! ReviewsPanelLoaded || s.type == type) return;
+    await _refetch(
+      s.copyWith(type: type, clearType: type == null, page: 1),
+    );
+  }
+
+  /// Triage filter: unread / read / resolved.
+  Future<void> setStatus(ExperienceStatus? status) async {
+    final ReviewsPanelState s = state;
+    if (s is! ReviewsPanelLoaded || s.status == status) return;
+    await _refetch(
+      s.copyWith(status: status, clearStatus: status == null, page: 1),
+    );
+  }
+
+  Future<void> clearFilters() async {
+    final ReviewsPanelState s = state;
+    if (s is! ReviewsPanelLoaded || !s.hasFilters) return;
+    await _refetch(
+      s.copyWith(
+        type: null,
+        status: null,
+        clearType: true,
+        clearStatus: true,
+        page: 1,
+      ),
+    );
   }
 
   Future<void> goToPage(int page) async {
-    final s = state;
+    final ReviewsPanelState s = state;
     if (s is! ReviewsPanelLoaded || page < 1 || page > s.pages) return;
-    await _reload(page: page);
+    await _refetch(s.copyWith(page: page));
   }
 
-  Future<void> _reload({int? page}) async {
-    final s = state;
+  /// Loads the current filters at the already-decided page.
+  Future<void> refresh() async {
+    final ReviewsPanelState s = state;
     if (s is! ReviewsPanelLoaded) return;
+    await _refetch(s);
+  }
+
+  Future<void> _refetch(ReviewsPanelLoaded next) async {
+    // Filters are visible immediately; the rows keep their place until the
+    // server answers, so the screen never flashes an empty list.
+    emit(next);
     try {
-      final out = await _repo.getReviews(
+      final ExperiencePage page = await _repo.getFeedback(
         restaurantId,
-        page: page ?? s.page,
-        rating: s.filterRating,
+        page: next.page,
+        type: next.type,
+        status: next.status,
       );
       if (isClosed) return;
-      emit(s.copyWith(
-        reviews: out.reviews,
-        page: out.page,
-        pages: out.pages,
-        total: out.total,
+      emit(next.copyWith(
+        items: page.items,
+        page: page.page,
+        pages: page.pages,
+        total: page.total,
         clearAction: true,
         clearError: true,
       ));
+    } catch (e) {
+      if (isClosed) return;
+      emit(next.copyWith(actionError: _message(e), clearAction: true));
+    }
+  }
+
+  /// Marks one row read, then refreshes the summary (the open-complaint count
+  /// is part of the overview and must not go stale behind a local edit).
+  Future<void> markRead(ExperienceRating rating) =>
+      _triage(rating, ExperienceStatus.read);
+
+  Future<void> resolve(ExperienceRating rating) =>
+      _triage(rating, ExperienceStatus.resolved);
+
+  Future<void> _triage(
+    ExperienceRating rating,
+    ExperienceStatus status,
+  ) async {
+    final ReviewsPanelState s = state;
+    if (s is! ReviewsPanelLoaded || s.actionId != null) return;
+    if (rating.status == status) return;
+    emit(s.copyWith(actionId: rating.id, clearError: true));
+
+    try {
+      final ExperienceRating updated = await _repo.setFeedbackStatus(
+        restaurantId: restaurantId,
+        id: rating.id,
+        status: status,
+      );
+      if (isClosed) return;
+
+      final bool hiddenByStatus = s.status != null && s.status != updated.status;
+      emit(s.copyWith(
+        items: hiddenByStatus
+            ? s.items.where((ExperienceRating r) => r.id != rating.id).toList()
+            : <ExperienceRating>[
+                for (final ExperienceRating r in s.items)
+                  if (r.id == updated.id) updated else r,
+              ],
+        total: hiddenByStatus ? (s.total - 1).clamp(0, s.total) : s.total,
+        clearAction: true,
+      ));
+
+      await _refreshSummary();
     } catch (e) {
       if (isClosed) return;
       emit(s.copyWith(actionError: _message(e), clearAction: true));
     }
   }
 
-  /// Posts the owner response and swaps the row; failures keep the list and
-  /// surface [ReviewsPanelLoaded.actionError].
-  Future<void> respond(String id, String text) async {
-    final s = state;
+  Future<void> _refreshSummary() async {
+    final ReviewsPanelState s = state;
     if (s is! ReviewsPanelLoaded) return;
-    emit(s.copyWith(actionId: id, clearError: true));
     try {
-      final updated = await _repo.respondReview(
-          restaurantId: restaurantId, id: id, response: text);
+      final ExperienceSummary summary =
+          await _repo.getExperienceSummary(restaurantId);
       if (isClosed) return;
-      emit(s.copyWith(
-        reviews: [for (final r in s.reviews) if (r.id == id) updated else r],
-        clearAction: true,
-      ));
-    } catch (e) {
-      if (isClosed) return;
-      emit(s.copyWith(actionError: _message(e), clearAction: true));
+      emit((state as ReviewsPanelLoaded).copyWith(summary: summary));
+    } catch (_) {
+      // The overview is decoration; a stale count is better than an error.
     }
   }
 

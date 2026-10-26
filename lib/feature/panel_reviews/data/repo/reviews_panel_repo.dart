@@ -53,6 +53,67 @@ class ReviewsPanelRepo {
     }
   }
 
+  /// GET {panelBase}/experience-ratings?restaurantId=&type=&status=&page=&limit=
+  ///
+  /// The operational inbox: ratings, complaints and suggestions in one paged
+  /// read. `type` and `status` are server filters — filtering a single page
+  /// client-side would hide anything that landed on page 2.
+  Future<ExperiencePage> getFeedback(
+    String restaurantId, {
+    int page = 1,
+    int limit = experiencePageSize,
+    ExperienceType? type,
+    ExperienceStatus? status,
+  }) async {
+    try {
+      final StringBuffer q = StringBuffer(
+        '${ApiConstants.panelBase}/experience-ratings'
+        '?restaurantId=$restaurantId&page=$page&limit=$limit',
+      );
+      if (type != null) q.write('&type=${experienceTypeWire(type)}');
+      if (status != null) q.write('&status=${experienceStatusWire(status)}');
+
+      final res = await _api.get(q.toString());
+      final payload = panelPayload(res.data);
+      if (payload is! Map) {
+        throw const FormatException('The feedback payload was not an object');
+      }
+      return ExperiencePage.fromPayload(
+        Map<String, dynamic>.from(payload),
+        fallbackPage: page,
+        fallbackLimit: limit,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// PATCH {panelBase}/experience-ratings/:id body {status: read|resolved}
+  ///
+  /// The server stamps `resolvedBy`/`resolvedAt`; the client never guesses who
+  /// handled it.
+  Future<ExperienceRating> setFeedbackStatus({
+    required String restaurantId,
+    required String id,
+    required ExperienceStatus status,
+  }) async {
+    try {
+      final res = await _api.patch(
+        '${ApiConstants.panelBase}/experience-ratings/$id'
+        '?restaurantId=$restaurantId',
+        data: <String, dynamic>{'status': experienceStatusWire(status)},
+      );
+      final payload = panelPayload(res.data);
+      final Object? row = payload is Map ? payload['rating'] : null;
+      if (row is! Map) {
+        throw const FormatException('The feedback payload was not an object');
+      }
+      return ExperienceRating.fromJson(Map<String, dynamic>.from(row));
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
   /// POST {panelBase}/reviews/:id/respond body {response} (decision 7).
   Future<PanelReview> respondReview({
     required String restaurantId,

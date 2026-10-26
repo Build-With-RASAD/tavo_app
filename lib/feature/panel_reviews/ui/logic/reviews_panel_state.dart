@@ -15,54 +15,73 @@ class ReviewsPanelLoading extends ReviewsPanelState {
 
 class ReviewsPanelLoaded extends ReviewsPanelState {
   const ReviewsPanelLoaded({
-    required this.reviews,
+    required this.items,
     required this.page,
     required this.pages,
     required this.total,
     this.summary,
+    this.type,
+    this.status,
     this.actionId,
     this.actionError,
-    this.filterRating,
   });
 
-  final List<PanelReview> reviews;
+  /// The current page of the active tab.
+  final List<ExperienceRating> items;
+
   final int page;
   final int pages;
   final int total;
 
-  /// Real 0–5 business rating + waiter leaderboard; null until the summary
-  /// call lands (or when it fails — the list must not depend on it).
+  /// Real 0–5 business rating + the three feedback counts; null until the
+  /// summary call lands (or when it fails — the inbox must not depend on it).
   final ExperienceSummary? summary;
+
+  /// Active server-side filters. `type == null` means "everything".
+  final ExperienceType? type;
+  final ExperienceStatus? status;
 
   final String? actionId; // per-row spinner target
   final String? actionError; // transient, keeps the list on screen
-  final int? filterRating; // null = all ratings (server-side filter)
+
+  /// Rows per tab, straight from the server aggregate.
+  int get reviewCount => summary?.byType['review'] ?? 0;
+  int get complaintCount => summary?.byType['complaint'] ?? 0;
+  int get suggestionCount => summary?.byType['suggestion'] ?? 0;
+  int get allCount => reviewCount + complaintCount + suggestionCount;
+
+  /// Complaints that still need someone to act.
+  int get openComplaints => summary?.openComplaints ?? 0;
+
+  bool get hasFilters => type != null || status != null;
 
   ReviewsPanelLoaded copyWith({
-    List<PanelReview>? reviews,
+    List<ExperienceRating>? items,
     int? page,
     int? pages,
     int? total,
     ExperienceSummary? summary,
+    ExperienceType? type,
+    ExperienceStatus? status,
     String? actionId,
     String? actionError,
-    int? filterRating,
     bool clearAction = false,
     bool clearError = false,
-    bool clearFilter = false,
+    bool clearType = false,
+    bool clearStatus = false,
   }) =>
       ReviewsPanelLoaded(
-        reviews: reviews ?? this.reviews,
+        items: items ?? this.items,
         page: page ?? this.page,
         pages: pages ?? this.pages,
         total: total ?? this.total,
         summary: summary ?? this.summary,
+        // `null` is a real filter value ("all"), so clearing is an explicit
+        // flag rather than the nullable value itself.
+        type: clearType ? null : type ?? this.type,
+        status: clearStatus ? null : status ?? this.status,
         actionId: clearAction ? null : actionId ?? this.actionId,
         actionError: clearError ? null : actionError ?? this.actionError,
-        // `filterRating: null` must clear the filter, so clearing is an
-        // explicit flag rather than the nullable value itself.
-        filterRating:
-            clearFilter ? null : filterRating ?? this.filterRating,
       );
 }
 
