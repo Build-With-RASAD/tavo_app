@@ -9,8 +9,8 @@ import 'package:tavo/core/network/panel_envelope.dart';
 
 import '../model/menu_models.dart';
 
-/// Staff-side menu API: categories, paged items, item CRUD, status toggles
-/// and item photos.
+/// Staff-side menu API: categories (with real item counts), paged/searchable
+/// items, item CRUD with specifications, status toggles and item photos.
 ///
 /// Every panel call carries `?restaurantId=` (without it the backend silently
 /// falls back to the FIRST venue). Error style mirrors
@@ -38,27 +38,35 @@ class MenuPanelRepo {
     }
   }
 
+  /// One page of items. `categoryId`, `status` and `search` are **server**
+  /// filters, so page N of a category is really that category's page N.
   Future<({List<PanelMenuItem> items, int page, int pages, int total})>
-      getItems(String restaurantId,
-          {int page = 1, String? categoryId, String? status}) async {
+      getItems(
+    String restaurantId, {
+    int page = 1,
+    int limit = menuPageSize,
+    String? categoryId,
+    String? status,
+    String? search,
+  }) async {
     try {
-      // `&status=` is a real server-side filter (model field). `categoryId`
-      // is deliberately NOT sent: the backend filters `match.categoryId`
-      // while the model field is `menuCategoryId`, so the query would match
-      // nothing — filter the returned page below instead.
       final q = StringBuffer(_base(restaurantId))
-        ..write('&page=$page&limit=20');
+        ..write('&page=$page&limit=$limit');
+      if (categoryId != null && categoryId.isNotEmpty) {
+        q.write('&categoryId=$categoryId');
+      }
       if (status != null) q.write('&status=$status');
+      final term = search?.trim() ?? '';
+      if (term.isNotEmpty) {
+        q.write('&search=${Uri.encodeQueryComponent(term)}');
+      }
       final res = await _api.get(q.toString());
       final payload = panelPayload(res.data);
       final (items: rows, pagination: pagination) = panelUnwrapList(payload);
-      var items = rows
+      final items = rows
           .whereType<Map<String, dynamic>>()
           .map(PanelMenuItem.fromJson)
           .toList();
-      if (categoryId != null) {
-        items = items.where((i) => i.categoryId == categoryId).toList();
-      }
       return (
         items: items,
         page: (pagination?['page'] as num?)?.toInt() ?? page,
@@ -72,27 +80,13 @@ class MenuPanelRepo {
 
   Future<PanelMenuItem> createItem({
     required String restaurantId,
-    required String categoryId,
-    required String arName,
-    required String enName,
-    required double price,
-    String? description,
+    required PanelMenuItemPayload payload,
   }) async {
     try {
       final res = await _api.post(
-          '${ApiConstants.panelBase}/menu?restaurantId=$restaurantId',
-          data: {
-            'categoryId': categoryId,
-            'price': price,
-            'ar': {
-              'name': arName,
-              if (description != null) 'description': description
-            },
-            'en': {
-              'name': enName,
-              if (description != null) 'description': description
-            },
-          });
+        '${ApiConstants.panelBase}/menu?restaurantId=$restaurantId',
+        data: payload.toJson(),
+      );
       return _itemOf(res.data);
     } on DioException catch (e) {
       throw parseDioError(e);
@@ -102,27 +96,13 @@ class MenuPanelRepo {
   Future<PanelMenuItem> updateItem({
     required String restaurantId,
     required String id,
-    required String categoryId,
-    required String arName,
-    required String enName,
-    required double price,
-    String? description,
+    required PanelMenuItemPayload payload,
   }) async {
     try {
       final res = await _api.put(
-          '${ApiConstants.panelBase}/menu/$id?restaurantId=$restaurantId',
-          data: {
-            'categoryId': categoryId,
-            'price': price,
-            'ar': {
-              'name': arName,
-              if (description != null) 'description': description
-            },
-            'en': {
-              'name': enName,
-              if (description != null) 'description': description
-            },
-          });
+        '${ApiConstants.panelBase}/menu/$id?restaurantId=$restaurantId',
+        data: payload.toJson(),
+      );
       return _itemOf(res.data);
     } on DioException catch (e) {
       throw parseDioError(e);
@@ -171,6 +151,34 @@ class MenuPanelRepo {
     }
   }
 
+  /// Renames a category. Missing before this: a typo in a category name was
+  /// permanent unless you deleted and rebuilt the whole thing.
+  Future<PanelMenuCategory> updateCategory({
+    required String restaurantId,
+    required String id,
+    required String arName,
+    required String enName,
+  }) async {
+    try {
+      final res = await _api.put(
+          '${ApiConstants.panelBase}/menu-categories/$id?restaurantId=$restaurantId',
+          data: {
+            'ar': {'name': arName},
+            'en': {'name': enName},
+          });
+      final payload = panelPayload(res.data);
+      if (payload is Map) {
+        return PanelMenuCategory.fromJson(
+            Map<String, dynamic>.from(payload));
+      }
+      throw 'Empty response';
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// 400 when the category still holds items (the server refuses to orphan
+  /// them); the sheet disables the action first, this is the backstop.
   Future<void> deleteCategory(String id, {String? restaurantId}) async {
     try {
       await _api.delete(
@@ -223,3 +231,7 @@ class MenuPanelRepo {
     throw 'Empty response';
   }
 }
+
+/// One page of the panel menu. 24 fits two full rows of the 2-column grid on
+/// a phone without a scroll that ends mid-row.
+const int menuPageSize = 24;

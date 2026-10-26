@@ -5,11 +5,84 @@ import 'package:tavo/core/network/api_error_parser.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/core/network/panel_envelope.dart';
 
+import '../model/floor_models.dart';
 import '../model/table_models.dart';
 
 class TablesPanelRepo {
   TablesPanelRepo({required this._api});
   final ApiService _api;
+
+  /// The whole floor in one call: KPIs, types, tables with their live party,
+  /// tickets, reservation and pending asks, plus today's bookings.
+  Future<PanelFloorSnapshot> getFloor(String restaurantId) async {
+    try {
+      final res = await _api.get(
+        '${ApiConstants.panelBase}/floor?restaurantId=$restaurantId',
+      );
+      final payload = panelPayload(res.data);
+      if (payload is Map) {
+        return PanelFloorSnapshot.fromJson(Map<String, dynamic>.from(payload));
+      }
+      throw const FormatException('The floor payload was not an object');
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// POST /physical-tables/:id/requests/:requestId/handle — clears one guest
+  /// ask (bill / card machine / waiter). Returns the updated session summary.
+  Future<PanelSessionSummary> handleServiceRequest({
+    required String restaurantId,
+    required String tableId,
+    required String requestId,
+  }) async {
+    try {
+      final res = await _api.post(
+        '${ApiConstants.panelBase}/physical-tables/$tableId/requests/$requestId/handle?restaurantId=$restaurantId',
+      );
+      return PanelSessionSummary.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// GET /physical-tables/:id/qr — idempotent: reprinting a card must not
+  /// invalidate the one already on the table.
+  Future<PanelTableQr> getTableQr({
+    required String restaurantId,
+    required String tableId,
+  }) async {
+    try {
+      final res = await _api.get(
+        '${ApiConstants.panelBase}/physical-tables/$tableId/qr?restaurantId=$restaurantId',
+      );
+      return PanelTableQr.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// POST /physical-tables/:id/qr/rotate — destructive: every printed card
+  /// for this table stops resolving the moment this succeeds.
+  Future<PanelTableQr> rotateTableQr({
+    required String restaurantId,
+    required String tableId,
+  }) async {
+    try {
+      final res = await _api.post(
+        '${ApiConstants.panelBase}/physical-tables/$tableId/qr/rotate?restaurantId=$restaurantId',
+      );
+      return PanelTableQr.fromJson(
+        panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
 
   /// The tables services return bare arrays (not pages): accept a List
   /// payload directly, else fall back to the nested page.
@@ -103,11 +176,7 @@ class TablesPanelRepo {
     try {
       final res = await _api.post(
         '${ApiConstants.panelBase}/tables/$tableTypeId/physical?restaurantId=$restaurantId',
-        data: {
-          'code': code,
-          'seats': seats,
-          if (zone != null) 'zone': zone,
-        },
+        data: {'code': code, 'seats': seats, if (zone != null) 'zone': zone},
       );
       return PanelPhysicalTable.fromJson(
         panelPayload(res.data) as Map<String, dynamic>,
@@ -134,14 +203,29 @@ class TablesPanelRepo {
         data: {
           if (code != null) 'code': code,
           if (seats != null) 'seats': seats,
-          if (clearZone)
-            'zone': null
-          else if (zone != null)
-            'zone': zone,
+          if (clearZone) 'zone': null else if (zone != null) 'zone': zone,
         },
       );
       return PanelPhysicalTable.fromJson(
         panelPayload(res.data) as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw parseDioError(e);
+    }
+  }
+
+  /// PATCH {panelBase}/reservations/:id/seat | /no-show — the two door
+  /// actions on today's arrivals. The screen re-reads `/floor` afterwards,
+  /// so the booking rail and the table card can never disagree.
+  Future<void> reservationAction({
+    required String restaurantId,
+    required String id,
+    required String action,
+  }) async {
+    assert(action == 'seat' || action == 'no-show');
+    try {
+      await _api.patch(
+        '${ApiConstants.panelBase}/reservations/$id/$action?restaurantId=$restaurantId',
       );
     } on DioException catch (e) {
       throw parseDioError(e);
@@ -159,9 +243,7 @@ class TablesPanelRepo {
     try {
       final res = await _api.post(
         '${ApiConstants.panelBase}/physical-tables/$id/settle?restaurantId=$restaurantId',
-        data: {
-          if (amount != null) 'amount': amount,
-        },
+        data: {if (amount != null) 'amount': amount},
       );
       return PanelSessionSummary.fromJson(
         panelPayload(res.data) as Map<String, dynamic>,

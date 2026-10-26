@@ -28,7 +28,11 @@ void main() {
       expect(item.categoryId, 'c1');
       expect(item.arName, 'كبسة');
       expect(item.enName, 'Kabsa');
-      expect(item.description, 'Lamb and rice');
+      // Descriptions are per language now, so a bilingual menu cannot lose the
+      // Arabic copy the guest actually reads. An untranslated one falls back to
+      // the language that exists rather than rendering an empty line.
+      expect(item.description('en'), 'Lamb and rice');
+      expect(item.description('ar'), 'Lamb and rice');
       expect(item.imageUrl, 'https://cdn/kabsa.png');
       expect(item.price, 55);
     });

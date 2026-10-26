@@ -17,21 +17,24 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 void registerTablesModule() {
   if (!getIt.isRegistered<TablesPanelRepo>()) {
     getIt.registerLazySingleton<TablesPanelRepo>(
-        () => TablesPanelRepo(api: getIt<ApiService>()));
+      () => TablesPanelRepo(api: getIt<ApiService>()),
+    );
   }
-  MoreHubRegistry.register(MoreHubEntry(
-    id: 'tables',
-    labelKey: 'tables',
-    icon: Iconsax.grid_4,
-    // `staffOpenOrders` is the shell's route back to the Orders tab. The
-    // tables screen offers it when the user taps an OCCUPIED table, so the
-    // owner can jump straight to the order that is holding that table.
-    // It is read here, at push time, because the shell registers it after
-    // the hub tiles are built.
-    builder: (restaurantId, venue) => TablesScreen(
-      restaurantId: restaurantId,
-      venue: venue,
-      onOpenOrders: staffOpenOrders,
+  MoreHubRegistry.register(
+    MoreHubEntry(
+      id: 'tables',
+      labelKey: 'tables',
+      icon: Iconsax.grid_4,
+      // `staffOpenOrders` is the shell's route back to the Orders tab. The
+      // tables screen offers it when the user taps an OCCUPIED table, so the
+      // owner can jump straight to the order that is holding that table.
+      // It is read here, at push time, because the shell registers it after
+      // the hub tiles are built.
+      builder: (restaurantId, venue) => TablesScreen(
+        restaurantId: restaurantId,
+        venue: venue,
+        onOpenOrders: staffOpenOrders,
+      ),
     ),
-  ));
+  );
 }

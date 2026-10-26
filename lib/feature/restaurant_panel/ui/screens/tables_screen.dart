@@ -1,542 +1,408 @@
 // lib/feature/restaurant_panel/ui/screens/tables_screen.dart
 //
-// Wave E3 (Task 28) — the tables redesign (Flutter half, Task 29-B).
+// The floor control room. One aggregate read (`GET /floor`) drives the whole
+// screen: today's money, the guest-ask rail, today's arrivals, the spatial
+// floor and the dense list. Staff never open a second screen to answer "who
+// is where, what do they owe, and who is waiting".
 //
-// One floor canvas is the hero:
-//   • View mode (default): the live floor — tables sized by seats, ringed by
-//     their live state, a zone legend with tinted zone backdrops, tap opens
-//     the detail sheet.
-//   • Edit mode (manageable roles only): drag + optional snap-to-grid
-//     (0.05), the unpositioned tray, add-table, multi-select bulk
-//     zone/status and the save-layout button (`PUT /floor-plan`).
+//   • View mode: floor canvas (default) or dense list.
+//   • Arrange mode (manageable roles): drag tiles, snap to 0.05, save layout.
+//   • Bulk mode: select tables, set a shared zone, activate/deactivate.
 //
-// The state colours pin the binding occupied rule exactly like T26's
-// `floor_strip.dart` (inactive > occupied > reserved > available) so the
-// dashboard strip and this floor can never drift apart. Occupancy itself is
-// the server's `occupied` flag — the client never re-derives it.
-//
-// The editor is custom on purpose: `VisualTableMap`
-// (`feature/booking/.../visual_table_map.dart`) is customer-booking shaped
-// (`AvailableTable`, selection tap) and warping panel tables into it would
-// couple the panel to the booking flow.
+// Destructive actions (delete, settle, rotate QR) always confirm, and the
+// sheet for one table carries its QR, party, tickets, bill and booking.
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
-import 'package:tavo/core/theme/colors.dart';
-import 'package:tavo/core/theme/text_styles.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:tavo/core/ui/tavo_web/tavo_web.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:tavo/feature/panel_tables/data/model/floor_models.dart';
 import 'package:tavo/feature/panel_tables/data/model/table_models.dart';
 import 'package:tavo/feature/panel_tables/data/repo/tables_panel_repo.dart';
 import 'package:tavo/feature/panel_tables/ui/logic/tables_panel_cubit.dart';
-import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:tavo/feature/panel_tables/ui/screens/table_qr_batch_screen.dart';
+import 'package:tavo/feature/panel_tables/ui/screens/table_sheet.dart';
+import 'package:tavo/feature/panel_tables/ui/widgets/tables_widgets.dart';
 
-/// Canvas interaction modes (spec decision 1).
-enum _CanvasMode { view, edit }
+enum _TablesView { floor, list }
 
-/// Staff panel floor plan: the live floor canvas, the zone legend, the
-/// table detail sheet and — for manageable roles — the edit tools.
-///
-/// Builds its own [TablesPanelCubit] through get_it (mirroring
-/// `PanelMenuScreen`) and drives the three async states with [ListSkeleton] /
-/// [ErrorStateView] / content. Save/status failures surface as a SnackBar
-/// while the editor keeps its positions (`TablesPanelLoaded.actionError`).
+/// Staff panel floor plan — the live control room.
 class TablesScreen extends StatefulWidget {
   const TablesScreen({
     super.key,
     required this.restaurantId,
     required this.venue,
     this.onOpenOrders,
+    this.autoRefresh = true,
   });
 
   final String restaurantId;
   final StaffRestaurant venue;
 
-  /// Opens the Orders tab (spec decision 5: an occupied table offers "view
-  /// orders" instead of duplicating the dashboard's start-order flow). The
-  /// shell wires it; `null` when the screen runs standalone.
+  /// Opens the Orders tab. The shell wires it; `null` when the screen runs
+  /// standalone (the sheet then hides "open orders").
   final VoidCallback? onOpenOrders;
+
+  /// Tests disable the 25 s poll so no timer outlives the widget tree.
+  final bool autoRefresh;
 
   @override
   State<TablesScreen> createState() => _TablesScreenState();
 }
 
 class _TablesScreenState extends State<TablesScreen> {
-  /// Tracks the previous `saving` flag so the save-success toast fires only
-  /// on the `saving: true → false` transition (the loaded state carries no
-  /// saved flag of its own).
+  final TextEditingController _search = TextEditingController();
+
+  _TablesView _view = _TablesView.floor;
+  bool _snap = true;
   bool _wasSaving = false;
 
-  _CanvasMode _mode = _CanvasMode.view;
-  bool _selecting = false;
-  bool _snap = true;
-  final Set<String> _selected = <String>{};
-
-  /// Owner / manager / `full_access` / `manage_tables` may edit the floor.
   bool get _canManage =>
-      widget.venue.role == 'owner' ||
-      widget.venue.role == 'manager' ||
-      widget.venue.permissions.contains('full_access') ||
+      widget.venue.canManage ||
       widget.venue.permissions.contains('manage_tables');
 
-  void _showSnack(BuildContext context, String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.r),
+  /// Seating a booking needs `manage_reservations`; read-only staff still see
+  /// the booking, they just cannot move it.
+  bool get _canSeat =>
+      _canManage || widget.venue.permissions.contains('manage_reservations');
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _toast(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: error ? TableColors.attention : TableColors.ink,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          margin: EdgeInsets.all(16.w),
         ),
-        margin: EdgeInsets.all(16.w),
-      ),
-    );
+      );
   }
 
   @override
   Widget build(BuildContext context) {
-    final manageable = _canManage;
     return BlocProvider(
       create: (_) => TablesPanelCubit(
         GetIt.instance<TablesPanelRepo>(),
         restaurantId: widget.restaurantId,
+        autoRefresh: widget.autoRefresh,
       )..load(),
       child: BlocConsumer<TablesPanelCubit, TablesPanelState>(
         listener: (context, state) {
           if (state is! TablesPanelLoaded) return;
-          if (_wasSaving && !state.saving && state.actionError == null) {
-            _showSnack(context, 'layout_saved'.tr(), Colors.green.shade700);
-          } else if (state.actionError != null) {
-            // The backend's 409 blocker message is authoritative — show it
-            // verbatim instead of a generic "could not delete" string.
-            _showSnack(context, state.actionError!, const Color(0xFFC62828));
+          if (state.actionError != null) {
+            _toast(state.actionError!, error: true);
+            context.read<TablesPanelCubit>().clearActionError();
+          } else if (_wasSaving && !state.saving) {
+            _toast('arranged_saved'.tr());
           }
           _wasSaving = state.saving;
         },
         builder: (context, state) {
           final cubit = context.read<TablesPanelCubit>();
           return Scaffold(
+            backgroundColor: TableColors.canvas,
             body: SafeArea(
-                child: _buildBody(context, cubit, state, manageable)),
+              child: switch (state) {
+                TablesPanelError() => ErrorStateView(
+                  message: state.message,
+                  onRetry: cubit.load,
+                ),
+                TablesPanelLoaded() => _body(context, cubit, state),
+                _ => const ListSkeleton(),
+              },
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildBody(
+  Widget _body(
     BuildContext context,
     TablesPanelCubit cubit,
-    TablesPanelState state,
-    bool manageable,
+    TablesPanelLoaded state,
   ) {
-    if (state is TablesPanelError) {
+    final attention = state.attentionTables;
+    final reservations = state.upcomingReservations;
+
+    if (state.tables.isEmpty && state.types.isEmpty) {
       return Column(
         children: [
+          _header(context, cubit, state),
           Expanded(
-            child: ErrorStateView(message: state.message, onRetry: cubit.load),
+            child: EmptyStateView(
+              icon: Iconsax.grid_4,
+              title: 'empty_tables_title'.tr(),
+              message: 'empty_tables_message'.tr(),
+              onRetry: cubit.load,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Iconsax.refresh),
-            onPressed: cubit.load,
-          ),
-          SizedBox(height: 8.h),
         ],
       );
     }
-    if (state is TablesPanelLoaded) {
-      if (state.types.isEmpty) {
-        return EmptyStateView(
-          icon: Iconsax.grid_4,
-          title: 'empty_tables_title'.tr(),
-          message: 'empty_tables_message'.tr(),
-          onRetry: cubit.load,
-        );
-      }
-      return SingleChildScrollView(
+
+    return RefreshIndicator(
+      color: TableColors.gold,
+      onRefresh: () => cubit.refresh(silent: true),
+      child: SingleChildScrollView(
+        key: const Key('tables_scroll'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: 16.h),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(manageable),
-            _buildTypeChips(cubit, state),
-            if (manageable && _mode == _CanvasMode.edit)
-              _buildEditToolbar(cubit, state),
-            _buildLegend(state),
-            SizedBox(height: 8.h),
-            _buildCanvas(cubit, state, manageable),
-            _buildTray(state),
-            _buildBulkBar(cubit, state),
-            if (manageable)
+            _header(context, cubit, state),
+            SizedBox(height: 14.h),
+            TodayStrip(
+              kpi: state.kpi,
+              onSales: () => _openList(context, cubit, FloorFilter.occupied),
+              onBills: () => _openList(context, cubit, FloorFilter.occupied),
+              onOccupancy: () =>
+                  _openList(context, cubit, FloorFilter.occupied),
+              onReservations: () =>
+                  _openList(context, cubit, FloorFilter.reserved),
+            ),
+            if (attention.isNotEmpty)
+              AttentionRail(
+                tables: attention,
+                busyTableId: state.actionId,
+                onOpen: (table) => _openSheet(context, cubit, state, table),
+                onHandle: (table, request) async {
+                  final ok = await cubit.handleRequest(table.id, request.id);
+                  if (ok) _toast('status_handled'.tr());
+                },
+              ),
+            if (reservations.isNotEmpty)
+              ReservationsRail(
+                reservations: reservations,
+                tableLabel: state.tableLabelFor,
+                onOpen: (reservation) =>
+                    _openReservation(context, state, reservation),
+                onSeat: _canSeat
+                    ? (reservation) async {
+                        final ok = await cubit.seatReservation(reservation.id);
+                        if (ok) _toast('reservation_seated'.tr());
+                      }
+                    : null,
+                onNoShow: _canSeat
+                    ? (reservation) async {
+                        final ok = await cubit.markReservationNoShow(
+                          reservation.id,
+                        );
+                        if (ok) _toast('no_show'.tr());
+                      }
+                    : null,
+              ),
+            _viewBar(context, cubit, state),
+            if (state.tables.isEmpty)
               Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    key: const Key('save_floor'),
-                    onPressed:
-                        state.saving ? null : () => cubit.saveFloorPlan(),
-                    child: state.saving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text('save_layout'.tr()),
+                padding: EdgeInsets.fromLTRB(24.w, 48.h, 24.w, 24.h),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 64.w,
+                      height: 64.w,
+                      decoration: BoxDecoration(
+                        color: TableColors.gold.withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Iconsax.grid_1,
+                          size: 28.sp, color: TableColors.goldDark),
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      'empty_tables_title'.tr(),
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w700,
+                        color: TableColors.ink,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'empty_tables_message'.tr(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        color: TableColors.inkSoft,
+                      ),
+                    ),
+                    if (_canManage) ...[
+                      SizedBox(height: 14.h),
+                      TavoButton.primary(
+                        key: const Key('empty_add_table'),
+                        label: 'add_table'.tr(),
+                        size: TavoButtonSize.compact,
+                        leading: const Icon(Iconsax.add, size: 16),
+                        onPressed: () => _showTableForm(context, cubit),
+                      ),
+                    ],
+                  ],
+                ),
+              )
+            else ...[
+              FloorFilterBar(
+                query: state.query,
+                filter: state.filter,
+                zone: state.zone,
+                counts: _filterCounts(state),
+                zones: state.zones,
+                searchController: _search,
+                onQuery: cubit.setQuery,
+                onFilter: cubit.setFilter,
+                onZone: cubit.setZone,
+              ),
+              SizedBox(height: 6.h),
+              if (state.visibleTables.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40.h),
+                  child: EmptyStateView(
+                    icon: Iconsax.search_normal_1,
+                    title: 'no_results'.tr(),
+                    onRetry: cubit.clearFilters,
                   ),
-                ),
-              ),
-          ],
-        ),
-      );
-    }
-    // TablesPanelInitial / TablesPanelLoading.
-    return const ListSkeleton();
-  }
-
-  Widget _buildHeader(bool manageable) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'floor_plan'.tr(),
-              style: TextStyles.font18Black400Weight(context),
-            ),
-          ),
-          if (manageable) ...[
-            ChoiceChip(
-              key: const Key('mode_view'),
-              label: Text('tbl_view_mode'.tr()),
-              selected: _mode == _CanvasMode.view,
-              onSelected: (_) => _setMode(_CanvasMode.view),
-            ),
-            SizedBox(width: 8.w),
-            ChoiceChip(
-              key: const Key('mode_edit'),
-              label: Text('tbl_edit_mode'.tr()),
-              selected: _mode == _CanvasMode.edit,
-              onSelected: (_) => _setMode(_CanvasMode.edit),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeChips(TablesPanelCubit cubit, TablesPanelLoaded state) {
-    return Padding(
-      padding: EdgeInsets.only(top: 12.h),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        child: Row(
-          children: [
-            for (final type in state.types)
-              Padding(
-                padding: EdgeInsets.only(right: 8.w),
-                child: ChoiceChip(
-                  key: Key('type_${type.id}'),
-                  label: Text(type.label),
-                  selected: state.selectedTypeId == type.id,
-                  onSelected: (_) => cubit.selectType(type.id),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Edit-mode tools: add a table, multi-select, snap-to-grid.
-  Widget _buildEditToolbar(TablesPanelCubit cubit, TablesPanelLoaded state) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
-      child: Wrap(
-        spacing: 8.w,
-        runSpacing: 8.h,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          OutlinedButton.icon(
-            key: const Key('add_table'),
-            icon: const Icon(Iconsax.add, size: 18),
-            label: Text('tbl_add_table'.tr()),
-            onPressed: () => _openAddForm(cubit, state),
-          ),
-          FilterChip(
-            key: const Key('select_toggle'),
-            label: Text('tbl_select'.tr()),
-            selected: _selecting,
-            onSelected: (v) => setState(() {
-              _selecting = v;
-              if (!v) _selected.clear();
-            }),
-          ),
-          FilterChip(
-            key: const Key('snap_toggle'),
-            label: Text('tbl_snap'.tr()),
-            selected: _snap,
-            onSelected: (v) => setState(() => _snap = v),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Distinct zones with their table counts (spec decision 4). Zones with no
-  /// positioned table still show up here — only their backdrop is skipped.
-  Widget _buildLegend(TablesPanelLoaded state) {
-    final zones = _zoneCounts(state.tables);
-    if (zones.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
-      child: Wrap(
-        key: const Key('zone_legend'),
-        spacing: 8.w,
-        runSpacing: 8.h,
-        children: [
-          for (final entry in zones.entries)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: _zoneColor(entry.key).withValues(alpha: 0.5),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 10.r,
-                    height: 10.r,
-                    decoration: BoxDecoration(
-                      color: _zoneColor(entry.key),
-                      shape: BoxShape.circle,
+                )
+              else if (_view == _TablesView.floor)
+                FloorCanvas(
+                  tables: state.visibleTables,
+                  arranging: state.arranging,
+                  selectedIds: state.selected,
+                  onTap: (table) {
+                    if (state.selecting) {
+                      cubit.toggleSelected(table.id);
+                    } else {
+                      _openSheet(context, cubit, state, table);
+                    }
+                  },
+                  onSelect: (table) => cubit.toggleSelected(table.id),
+                  onMove: (id, x, y) => cubit.moveTable(id, x, y, snap: _snap),
+                  onSaveAsLayout: _canManage
+                      ? () => _saveAutoGrid(cubit, state)
+                      : null,
+                )
+              else
+                for (final table in state.visibleTables)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 2.h),
+                    child: TableListRow(
+                      table: table,
+                      onTap: () {
+                        if (state.selecting) {
+                          cubit.toggleSelected(table.id);
+                        } else {
+                          _openSheet(context, cubit, state, table);
+                        }
+                      },
+                      onQr: () => _openSheet(context, cubit, state, table),
                     ),
                   ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    '${entry.key} • ${entry.value}',
-                    style: TextStyles.font12DarkGray400Weight(context),
-                  ),
-                ],
-              ),
-            ),
-        ],
+              if (state.arranging) _arrangeBar(context, cubit, state),
+              if (state.selecting) _bulkBar(context, cubit, state),
+              UpdatedFooter(at: state.generatedAt, stale: state.stale),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  /// The fractional canvas: positioned tables as rounded-rect cards sized by
-  /// seats, dragged with `onPanUpdate` (fractions recomputed from the box
-  /// size) and tinted zone backdrops behind them.
-  Widget _buildCanvas(
+  // ── Header ───────────────────────────────────────────────────────────────
+
+  Widget _header(
+    BuildContext context,
     TablesPanelCubit cubit,
     TablesPanelLoaded state,
-    bool manageable,
   ) {
-    final positioned = state.tables.where((t) => t.positioned).toList();
-    return SizedBox(
-      key: const Key('floor_editor'),
-      height: 300.h,
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 16.w),
-        decoration: BoxDecoration(
-          color: ColorsManager.grey100,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: ColorsManager.grey200),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final w = constraints.maxWidth;
-            final h = constraints.maxHeight;
-            return Stack(
-              children: [
-                for (final zone in _zoneCounts(state.tables).keys)
-                  ..._zoneBackdrop(zone, state.tables, w, h),
-                for (final table in positioned)
-                  _buildTableCard(cubit, table, w, h, manageable),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  /// One table card: rounded rect, sized by seats, ringed by its live state,
-  /// dimmed when inactive and never hidden.
-  Widget _buildTableCard(
-    TablesPanelCubit cubit,
-    PanelPhysicalTable table,
-    double w,
-    double h,
-    bool manageable,
-  ) {
-    final size = _tableSize(table.seats);
-    final color = _tableColor(table);
-    final selected = _selected.contains(table.id);
-    return Positioned(
-      left: table.x! * w - size / 2,
-      top: table.y! * h - size / 2,
-      child: SizedBox(
-        key: Key('table_${table.id}'),
-        width: size,
-        height: size,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _onTableTap(cubit, table),
-          onPanUpdate: manageable
-              ? (details) => cubit.moveTable(
-                    table.id,
-                    (table.x! * w + details.delta.dx) / w,
-                    (table.y! * h + details.delta.dy) / h,
-                    snap: _mode == _CanvasMode.edit && _snap,
-                  )
-              : null,
-          child: Opacity(
-            key: Key('dim_${table.id}'),
-            opacity: table.status == 'inactive' ? 0.55 : 1.0,
-            child: Container(
-              key: Key('table_card_${table.id}'),
-              decoration: BoxDecoration(
-                color: ColorsManager.white,
-                borderRadius: BorderRadius.circular(size * 0.22),
-                border: Border.all(color: color, width: 2),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Center(
-                    child: Text(
-                      table.code,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: _seatDots(table.seats),
-                    ),
-                  ),
-                  if (selected)
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        key: Key('selected_${table.id}'),
-                        margin: const EdgeInsets.all(2),
-                        padding: const EdgeInsets.all(1),
-                        decoration: const BoxDecoration(
-                          color: ColorsManager.primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Iconsax.check,
-                          size: 9,
-                          color: ColorsManager.white,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// A zone backdrop: the bounding box over that zone's positioned tables at
-  /// 8% opacity plus its label. Zones without positioned tables are legend
-  /// entries only.
-  List<Widget> _zoneBackdrop(
-    String zone,
-    List<PanelPhysicalTable> tables,
-    double w,
-    double h,
-  ) {
-    final members = tables
-        .where((t) => t.zone == zone && t.positioned)
-        .toList();
-    if (members.isEmpty) return const [];
-    var minX = 1.0, maxX = 0.0, minY = 1.0, maxY = 0.0;
-    for (final t in members) {
-      minX = t.x! < minX ? t.x! : minX;
-      maxX = t.x! > maxX ? t.x! : maxX;
-      minY = t.y! < minY ? t.y! : minY;
-      maxY = t.y! > maxY ? t.y! : maxY;
-    }
-    const pad = 18.0;
-    final color = _zoneColor(zone);
-    return [
-      Positioned(
-        left: minX * w - pad,
-        top: minY * h - pad,
-        width: (maxX - minX) * w + pad * 2,
-        height: (maxY - minY) * h + pad * 2,
-        child: Container(
-          key: Key('zone_backdrop_$zone'),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Text(
-                zone,
-                key: Key('zone_backdrop_label_$zone'),
-                style: TextStyle(fontSize: 9, color: color),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ];
-  }
-
-  /// Unpositioned (`position == null`) tables wait here as code cards.
-  Widget _buildTray(TablesPanelLoaded state) {
-    final tray = state.tables.where((t) => !t.positioned).toList();
-    if (tray.isEmpty) return const SizedBox.shrink();
-    return Container(
-      key: const Key('floor_tray'),
-      width: double.infinity,
-      margin: EdgeInsets.symmetric(horizontal: 16.w),
-      padding: EdgeInsets.all(12.r),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: ColorsManager.grey200),
-      ),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 14.h, 12.w, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'unpositioned'.tr(),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          SizedBox(height: 8.h),
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
+          Row(
             children: [
-              for (final table in tray)
-                Chip(
-                  label: Text(table.code),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'floor_live'.tr(),
+                          style: TextStyle(
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.w800,
+                            color: TableColors.ink,
+                            height: 1.15,
+                          ),
+                        ),
+                        SizedBox(width: 7.w),
+                        if (state.stale)
+                          Icon(
+                            Iconsax.warning_2,
+                            size: 14.sp,
+                            color: TableColors.attention,
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      [
+                        DateFormat('EEE d MMM').format(DateTime.now()),
+                        if (state.kpi.seatedNow > 0)
+                          '${state.kpi.seatedNow} ${'guests'.tr().toLowerCase()}',
+                      ].join(' · '),
+                      style: TextStyle(
+                        fontSize: 10.5.sp,
+                        color: TableColors.inkSoft,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (state.tables.isNotEmpty) ...[
+                _HeaderAction(
+                  key: const Key('batch_qr'),
+                  icon: Iconsax.printer,
+                  tooltip: 'print_qr'.tr(),
+                  onTap: () => _openBatch(context, cubit, state),
+                ),
+                SizedBox(width: 4.w),
+              ],
+              if (_canManage && state.tables.isNotEmpty) ...[
+                _HeaderAction(
+                  key: const Key('select_tables'),
+                  icon: state.selecting ? Iconsax.close_circle : Iconsax.grid_2,
+                  tooltip: state.selecting
+                      ? 'cancel'.tr()
+                      : 'select_tables'.tr(),
+                  active: state.selecting,
+                  onTap: () => cubit.setSelecting(!state.selecting),
+                ),
+                SizedBox(width: 4.w),
+              ],
+              if (_canManage)
+                _HeaderAction(
+                  key: const Key('add_table'),
+                  icon: Iconsax.add,
+                  tooltip: 'add_table'.tr(),
+                  onTap: () => _showTableForm(context, cubit),
                 ),
             ],
           ),
@@ -545,489 +411,447 @@ class _TablesScreenState extends State<TablesScreen> {
     );
   }
 
-  /// Multi-select bulk bar (edit mode only): assign a zone, set a status.
-  Widget _buildBulkBar(TablesPanelCubit cubit, TablesPanelLoaded state) {
-    if (!_selecting || _selected.isEmpty) return const SizedBox.shrink();
-    final ids = _selected.toList();
-    final zones = _zoneCounts(state.tables).keys.toList();
+  /// Floor/List switch plus the arrange entry point for managers.
+  Widget _viewBar(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    TablesPanelLoaded state,
+  ) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(2.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(11.r),
+              border: Border.all(color: TableColors.line),
+            ),
+            child: Row(
+              children: [
+                _ViewTab(
+                  key: const Key('view_floor'),
+                  icon: Iconsax.element_3,
+                  label: 'view_floor'.tr(),
+                  selected: _view == _TablesView.floor,
+                  onTap: () => setState(() => _view = _TablesView.floor),
+                ),
+                _ViewTab(
+                  key: const Key('view_list'),
+                  icon: Iconsax.menu_board,
+                  label: 'view_list'.tr(),
+                  selected: _view == _TablesView.list,
+                  onTap: () => setState(() => _view = _TablesView.list),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          if (_canManage && !state.selecting)
+            TavoButton.ghost(
+              key: const Key('arrange_mode'),
+              label: state.arranging ? 'done'.tr() : 'arrange'.tr(),
+              size: TavoButtonSize.compact,
+              leading: Icon(
+                state.arranging ? Iconsax.close_circle : Iconsax.edit_2,
+                size: 15,
+              ),
+              onPressed: () =>
+                  state.arranging ? cubit.exitArrange() : cubit.enterArrange(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Arrange / bulk ───────────────────────────────────────────────────────
+
+  Widget _arrangeBar(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    TablesPanelLoaded state,
+  ) {
+    return Container(
+      key: const Key('arrange_bar'),
+      margin: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: TableColors.ink,
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: Row(
+        children: [
+          Icon(Iconsax.grid_5, size: 14.sp, color: Colors.white70),
+          SizedBox(width: 6.w),
+          Text(
+            'drag_hint'.tr(),
+            style: TextStyle(fontSize: 10.sp, color: Colors.white70),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Text(
+                'snap_grid'.tr(),
+                style: TextStyle(fontSize: 10.sp, color: Colors.white70),
+              ),
+              SizedBox(width: 4.w),
+              SizedBox(
+                height: 22.h,
+                child: Switch(
+                  key: const Key('snap_switch'),
+                  value: _snap,
+                  onChanged: (value) => setState(() => _snap = value),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(width: 6.w),
+          SizedBox(
+            height: 32.h,
+            child: FilledButton(
+              key: const Key('save_floor'),
+              onPressed: state.saving
+                  ? null
+                  : () async {
+                      final ok = await cubit.saveFloorPlan();
+                      if (ok) cubit.exitArrange();
+                    },
+              style: FilledButton.styleFrom(
+                backgroundColor: TableColors.gold,
+                foregroundColor: TableColors.goldDark,
+                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9.r),
+                ),
+              ),
+              child: state.saving
+                  ? const SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: TableColors.goldDark,
+                      ),
+                    )
+                  : Text(
+                      'save_layout'.tr(),
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulkBar(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    TablesPanelLoaded state,
+  ) {
+    final count = state.selected.length;
     return Container(
       key: const Key('bulk_bar'),
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
-      padding: EdgeInsets.all(8.r),
+      margin: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
+      padding: EdgeInsets.fromLTRB(12.w, 8.h, 8.w, 8.h),
       decoration: BoxDecoration(
-        color: ColorsManager.white,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: ColorsManager.grey200),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: TableColors.line),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'tbl_selected_count'.tr(namedArgs: {'n': '${ids.length}'}),
-            style: TextStyles.font12Black500Weight(context),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+            decoration: BoxDecoration(
+              color: TableColors.gold.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w800,
+                color: TableColors.goldDark,
+              ),
+            ),
           ),
-          SizedBox(height: 6.h),
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: [
-              for (final zone in zones)
-                ActionChip(
-                  key: Key('bulk_zone_$zone'),
-                  label: Text(zone),
-                  onPressed: () => cubit.bulkSetZone(ids, zone),
-                ),
-              ActionChip(
-                key: const Key('bulk_zone_new'),
-                label: Text('tbl_new_zone'.tr()),
-                onPressed: () => _askNewZone(cubit, ids),
-              ),
-              ActionChip(
-                key: const Key('bulk_status_available'),
-                label: Text('tbl_available'.tr()),
-                onPressed: () => cubit.bulkSetStatus(ids, 'available'),
-              ),
-              ActionChip(
-                key: const Key('bulk_status_inactive'),
-                label: Text('tbl_inactive'.tr()),
-                onPressed: () => cubit.bulkSetStatus(ids, 'inactive'),
-              ),
-            ],
+          SizedBox(width: 6.w),
+          Text(
+            'select_tables'.tr(),
+            style: TextStyle(
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600,
+              color: TableColors.ink,
+            ),
+          ),
+          const Spacer(),
+          TavoButton.ghost(
+            key: const Key('bulk_zone'),
+            label: 'zone'.tr(),
+            size: TavoButtonSize.compact,
+            onPressed: count == 0
+                ? null
+                : () => _showBulkZone(context, cubit, state),
+          ),
+          SizedBox(width: 4.w),
+          TavoButton.ghost(
+            key: const Key('bulk_inactive'),
+            label: 'deactivate'.tr(),
+            size: TavoButtonSize.compact,
+            onPressed: count == 0
+                ? null
+                : () =>
+                      cubit.bulkSetStatus(state.selected.toList(), 'inactive'),
+          ),
+          SizedBox(width: 4.w),
+          TavoButton.ghost(
+            key: const Key('bulk_available'),
+            label: 'activate'.tr(),
+            size: TavoButtonSize.compact,
+            onPressed: count == 0
+                ? null
+                : () =>
+                      cubit.bulkSetStatus(state.selected.toList(), 'available'),
           ),
         ],
       ),
     );
   }
 
-  /// Creates a brand-new zone name and assigns it to the selection.
-  Future<void> _askNewZone(TablesPanelCubit cubit, List<String> ids) async {
+  Future<void> _showBulkZone(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    TablesPanelLoaded state,
+  ) async {
     final controller = TextEditingController();
-    final zone = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('tbl_new_zone'.tr()),
-        content: TextField(
-          key: const Key('bulk_zone_new_field'),
-          controller: controller,
-          decoration: InputDecoration(labelText: 'tbl_form_zone'.tr()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text('tbl_delete_confirm_no'.tr()),
+    final zone = await TavoSheet.show<String>(
+      context,
+      title: 'zone'.tr(),
+      subtitle: 'zone_none'.tr(),
+      maxHeightFactor: 0.42,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const Key('bulk_zone_field'),
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(hintText: 'zone_none'.tr()),
           ),
-          TextButton(
-            key: const Key('bulk_zone_new_save'),
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: Text('tbl_form_submit'.tr()),
+          SizedBox(height: TavoSpace.xl),
+          Row(
+            children: [
+              Expanded(
+                child: TavoButton.secondary(
+                  label: 'cancel'.tr(),
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              SizedBox(width: TavoSpace.md),
+              Expanded(
+                child: TavoButton.primary(
+                  key: const Key('bulk_zone_save'),
+                  label: 'save'.tr(),
+                  expand: true,
+                  onPressed: () =>
+                      Navigator.of(context).pop(controller.text.trim()),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
     controller.dispose();
     if (zone == null || zone.isEmpty) return;
-    await cubit.bulkSetZone(ids, zone);
+    await cubit.bulkSetZone(state.selected.toList(), zone);
   }
 
-  void _setMode(_CanvasMode mode) {
-    setState(() {
-      _mode = mode;
-      _selecting = false;
-      _selected.clear();
-    });
-  }
-
-  void _onTableTap(TablesPanelCubit cubit, PanelPhysicalTable table) {
-    if (_selecting) {
-      setState(() {
-        if (!_selected.remove(table.id)) _selected.add(table.id);
-      });
-      return;
-    }
-    _openDetailSheet(cubit, table);
-  }
-
-  /// The table detail sheet (spec decision 5): code, seats, type, zone chip,
-  /// status line, the occupied line + "view orders", and the edit / toggle /
-  /// delete actions for manageable roles.
-  Future<void> _openDetailSheet(
-    TablesPanelCubit cubit,
-    PanelPhysicalTable table,
-  ) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _TableDetailSheet(
-        cubit: cubit,
-        tableId: table.id,
-        manageable: _canManage,
-        typeLabel: _typeLabel(cubit.state, table.tableTypeId),
-        onOpenOrders: widget.onOpenOrders,
-      ),
-    );
-  }
-
-  /// The add-table form (edit mode): code, seats and a zone for the selected
-  /// table type.
-  Future<void> _openAddForm(
+  /// Persists the auto-grid as a real layout: three columns, centred rows.
+  Future<bool> _saveAutoGrid(
     TablesPanelCubit cubit,
     TablesPanelLoaded state,
   ) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => Container(
-        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'tbl_add_table'.tr(),
-                style: TextStyles.font16Black500Weight(context),
-              ),
-              SizedBox(height: 12.h),
-              _TableForm(
-                initialCode: '',
-                initialSeats: '',
-                initialZone: '',
-                zoneSuggestions: _zoneCounts(state.tables).keys.toList(),
-                submitLabel: 'tbl_form_create'.tr(),
-                closeOnSuccess: true,
-                onSubmit: (code, seats, zone) => cubit.createTable(
-                  code: code,
-                  seats: seats,
-                  zone: zone,
-                ),
-              ),
-            ],
-          ),
+    final rows = state.tables.length;
+    final columns = rows <= 4 ? 2 : (rows <= 9 ? 3 : 4);
+    final rowCount = (rows / columns).ceil();
+    for (var i = 0; i < rows; i++) {
+      final col = i % columns;
+      final row = i ~/ columns;
+      cubit.moveTable(
+        state.tables[i].id,
+        (col + 0.5) / columns,
+        (row + 0.5) / rowCount,
+      );
+    }
+    return cubit.saveFloorPlan();
+  }
+
+  // ── Openers ──────────────────────────────────────────────────────────────
+
+  void _openList(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    FloorFilter filter,
+  ) {
+    setState(() => _view = _TablesView.list);
+    cubit.setFilter(filter);
+  }
+
+  void _openSheet(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    TablesPanelLoaded state,
+    PanelPhysicalTable table,
+  ) {
+    showTableSheet(
+      context,
+      cubit: cubit,
+      table: table,
+      canManage: _canManage,
+      canSeat: _canSeat,
+      onOpenOrders: widget.onOpenOrders,
+      onEdit: _canManage
+          ? () async {
+              Navigator.of(context).pop();
+              await Future<void>.delayed(Duration.zero);
+              if (!context.mounted) return;
+              await _showTableForm(context, cubit, table: table);
+            }
+          : null,
+      onDelete: _canManage
+          ? () async {
+              Navigator.of(context).pop();
+              await Future<void>.delayed(Duration.zero);
+              if (!context.mounted) return;
+              await _confirmDelete(context, cubit, table);
+            }
+          : null,
+    );
+  }
+
+  void _openReservation(
+    BuildContext context,
+    TablesPanelLoaded state,
+    PanelTableReservation reservation,
+  ) {
+    if (reservation.tableIds.isEmpty) return;
+    final table = state.tableById(reservation.tableIds.first);
+    if (table == null) {
+      _toast('reservation'.tr(), error: false);
+      return;
+    }
+    _openSheet(context, context.read<TablesPanelCubit>(), state, table);
+  }
+
+  void _openBatch(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    TablesPanelLoaded state,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider<TablesPanelCubit>.value(
+          value: cubit,
+          child: TableQrBatchScreen(tables: state.tables),
         ),
       ),
     );
   }
 
-  /// Distinct zones → table count (insertion order keeps the legend stable).
-  Map<String, int> _zoneCounts(List<PanelPhysicalTable> tables) {
-    final counts = <String, int>{};
-    for (final t in tables) {
-      final zone = t.zone;
-      if (zone == null || zone.isEmpty) continue;
-      counts[zone] = (counts[zone] ?? 0) + 1;
+  // ── Forms ────────────────────────────────────────────────────────────────
+
+  Future<void> _showTableForm(
+    BuildContext context,
+    TablesPanelCubit cubit, {
+    PanelPhysicalTable? table,
+  }) async {
+    final state = cubit.state;
+    if (state is! TablesPanelLoaded) return;
+    if (table == null && state.types.isEmpty) {
+      _toast('empty_tables_message'.tr(), error: true);
+      return;
     }
-    return counts;
-  }
+    final code = TextEditingController(text: table?.code ?? '');
+    final seats = TextEditingController(text: '${table?.seats ?? 2}');
+    final zone = TextEditingController(text: table?.zone ?? '');
+    var typeId =
+        table?.tableTypeId ??
+        (state.types.isNotEmpty ? state.types.first.id : '');
 
-  /// Hash-stable colour for a zone name (spec decision 4).
-  Color _zoneColor(String zone) {
-    var hash = 0;
-    for (final unit in zone.codeUnits) {
-      hash = (hash * 31 + unit) & 0x3fffffff;
-    }
-    return HSLColor.fromAHSL(1, (hash % 360).toDouble(), 0.55, 0.45).toColor();
-  }
-
-  /// Table card size by seats (binding): 1–2 → 44, 3–4 → 52, 5–6 → 64,
-  /// 7+ → 76 logical px.
-  double _tableSize(int seats) {
-    if (seats <= 2) return 44;
-    if (seats <= 4) return 52;
-    if (seats <= 6) return 64;
-    return 76;
-  }
-
-  /// The live state colour — identical to T26's `floor_strip.dart`:
-  /// inactive > occupied > reserved > available.
-  Color _tableColor(PanelPhysicalTable table) {
-    if (table.status == 'inactive') return Colors.grey;
-    if (table.isOccupied) return Colors.orange;
-    if (table.status == 'reserved') return Colors.red;
-    return Colors.green;
-  }
-
-  Widget _seatDots(int seats) {
-    final count = seats > 6 ? 6 : seats;
-    if (count <= 0) return const SizedBox.shrink();
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < count; i++) ...[
-          if (i > 0) const SizedBox(width: 1.5),
-          Container(
-            width: 3,
-            height: 3,
-            decoration: const BoxDecoration(
-              color: ColorsManager.darkGray300,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  String? _typeLabel(TablesPanelState state, String tableTypeId) {
-    if (state is! TablesPanelLoaded) return null;
-    for (final type in state.types) {
-      if (type.id == tableTypeId) return type.label;
-    }
-    return null;
-  }
-}
-
-/// The detail bottom sheet: the table's identity, its live state and — for
-/// manageable roles — the edit / status-toggle / delete actions.
-class _TableDetailSheet extends StatefulWidget {
-  const _TableDetailSheet({
-    required this.cubit,
-    required this.tableId,
-    required this.manageable,
-    required this.typeLabel,
-    this.onOpenOrders,
-  });
-
-  final TablesPanelCubit cubit;
-  final String tableId;
-  final bool manageable;
-  final String? typeLabel;
-  final VoidCallback? onOpenOrders;
-
-  @override
-  State<_TableDetailSheet> createState() => _TableDetailSheetState();
-}
-
-class _TableDetailSheetState extends State<_TableDetailSheet> {
-  bool _editing = false;
-
-  PanelPhysicalTable? _tableOf(TablesPanelState state) {
-    if (state is! TablesPanelLoaded) return null;
-    for (final t in state.tables) {
-      if (t.id == widget.tableId) return t;
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<TablesPanelCubit, TablesPanelState>(
-      bloc: widget.cubit,
-      builder: (context, state) {
-        final table = _tableOf(state);
-        final acting =
-            state is TablesPanelLoaded && state.actionId == widget.tableId;
-        return Container(
-          key: const Key('table_sheet'),
-          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        table?.code ?? '',
-                        key: const Key('sheet_title'),
-                        style: TextStyles.font20Black500Weight(context),
-                      ),
-                    ),
-                    if (acting)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                if (table == null)
-                  Text('tbl_table_missing'.tr())
-                else ...[
-                  Text(
-                    'tbl_seats_count'.tr(namedArgs: {'n': '${table.seats}'}),
-                    style: TextStyles.font14Black400Weight(context),
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    'tbl_type_label'
-                        .tr(namedArgs: {'label': widget.typeLabel ?? '-'}),
-                    style: TextStyles.font14Black400Weight(context),
-                  ),
-                  SizedBox(height: 8.h),
-                  if (table.zone != null && table.zone!.isNotEmpty)
-                    Chip(
-                      key: const Key('sheet_zone'),
-                      label: Text(table.zone!),
-                    ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    'tbl_status_line'
-                        .tr(namedArgs: {'status': _statusLabel(table)}),
-                    style: TextStyles.font14Black400Weight(context),
-                  ),
-                  if (table.openSession != null) ...[
-                    SizedBox(height: 12.h),
-                    _SessionCard(
-                      session: table.openSession!,
-                      busy: acting,
-                      canSettle: widget.manageable,
-                      onSettle: () => _settle(table.openSession!),
-                    ),
-                  ],
-                  if (table.isOccupied) ...[
-                    SizedBox(height: 4.h),
-                    Text(
-                      'tbl_occupied_hint'.tr(),
-                      key: const Key('sheet_occupied'),
-                      style: TextStyles.font14Red500Weight(context),
-                    ),
-                    SizedBox(height: 8.h),
-                    OutlinedButton.icon(
-                      key: const Key('sheet_open_orders'),
-                      icon: const Icon(Iconsax.receipt_2, size: 18),
-                      label: Text('tbl_open_orders'.tr()),
-                      onPressed: _openOrders,
-                    ),
-                  ],
-                ],
-                SizedBox(height: 12.h),
-                if (_editing && table != null)
-                  _TableForm(
-                    initialCode: table.code,
-                    initialSeats: '${table.seats}',
-                    initialZone: table.zone ?? '',
-                    zoneSuggestions: const [],
-                    submitLabel: 'tbl_form_submit'.tr(),
-                    onSubmit: (code, seats, zone) async {
-                      final ok = await widget.cubit.updateTable(
-                        table.id,
-                        code: code,
-                        seats: seats,
-                        zone: zone,
-                        clearZone: zone == null,
-                      );
-                      if (ok && mounted) setState(() => _editing = false);
-                      return ok;
-                    },
-                  )
-                else if (widget.manageable && table != null)
-                  Wrap(
-                    spacing: 8.w,
-                    runSpacing: 8.h,
-                    children: [
-                      OutlinedButton.icon(
-                        key: const Key('sheet_edit'),
-                        icon: const Icon(Iconsax.edit_2, size: 18),
-                        label: Text('tbl_edit'.tr()),
-                        onPressed: () => setState(() => _editing = true),
-                      ),
-                      OutlinedButton.icon(
-                        key: const Key('sheet_toggle'),
-                        icon: const Icon(Iconsax.arrow_swap_horizontal, size: 18),
-                        label: Text('tbl_toggle_status'.tr()),
-                        onPressed: () => widget.cubit.toggleStatus(table),
-                      ),
-                      OutlinedButton.icon(
-                        key: const Key('sheet_delete'),
-                        icon: const Icon(Iconsax.trash, size: 18),
-                        label: Text('tbl_delete'.tr()),
-                        // Client-side gate for the known blocker (an open
-                        // order). The server's 409 stays authoritative — a
-                        // table blocked by an active reservation still
-                        // reaches the API and its message is surfaced.
-                        onPressed: table.isOccupied ? null : () => _confirmDelete(table),
-                      ),
-                    ],
-                  ),
-                if (widget.manageable && table != null && table.isOccupied)
-                  Padding(
-                    padding: EdgeInsets.only(top: 8.h),
-                    child: Text(
-                      'tbl_delete_blocked'.tr(),
-                      key: const Key('sheet_delete_blocked'),
-                      style: TextStyles.font12DarkGray400Weight(context)
-                          .copyWith(color: ColorsManager.errorColor),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _statusLabel(PanelPhysicalTable table) {
-    if (table.isOccupied) return 'tbl_occupied'.tr();
-    switch (table.status) {
-      case 'reserved':
-        return 'tbl_reserved'.tr();
-      case 'inactive':
-        return 'tbl_inactive'.tr();
-      case 'unavailable':
-        return 'tbl_unavailable'.tr();
-      default:
-        return 'tbl_available'.tr();
-    }
-  }
-
-  void _openOrders() {
-    widget.onOpenOrders?.call();
-    Navigator.of(context).pop();
-  }
-
-  Future<void> _settle(PanelSessionSummary session) async {
-    final settled = await widget.cubit.settleTable(
-      widget.tableId,
-      amount: session.total,
-    );
-    if (!mounted || !settled) return;
-    Navigator.of(context).pop();
-  }
-
-  /// Destructive delete: the action sheet confirms before the repo is hit.
-  Future<void> _confirmDelete(PanelPhysicalTable table) async {
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (sheetContext) => Container(
-        key: const Key('delete_confirm'),
-        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final saved = await TavoSheet.show<bool>(
+      context,
+      title: table == null ? 'create_table'.tr() : 'edit_table'.tr(),
+      subtitle: 'empty_tables_message'.tr(),
+      maxHeightFactor: 0.86,
+      child: StatefulBuilder(
+        builder: (dialogContext, setLocal) => ListView(
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
           children: [
-            Text(
-              'tbl_delete_confirm_title'.tr(),
-              style: TextStyles.font16Black500Weight(context),
+            if (table == null)
+              DropdownButtonFormField<String>(
+                key: const Key('table_type_field'),
+                initialValue: typeId.isEmpty ? null : typeId,
+                decoration: InputDecoration(labelText: 'table'.tr()),
+                items: [
+                  for (final type in state.types)
+                    DropdownMenuItem(value: type.id, child: Text(type.label)),
+                ],
+                onChanged: (value) => setLocal(() => typeId = value ?? typeId),
+              ),
+            SizedBox(height: 8.h),
+            TextField(
+              key: const Key('table_code_field'),
+              controller: code,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(labelText: 'table_code'.tr()),
             ),
             SizedBox(height: 8.h),
-            Text(
-              'tbl_delete_confirm_message'.tr(),
-              style: TextStyles.font12DarkGray400Weight(context),
+            TextField(
+              key: const Key('table_seats_field'),
+              controller: seats,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: 'seats'.tr()),
             ),
-            SizedBox(height: 16.h),
+            SizedBox(height: 8.h),
+            TextField(
+              key: const Key('table_zone_field'),
+              controller: zone,
+              decoration: InputDecoration(
+                labelText: 'zone'.tr(),
+                hintText: 'zone_none'.tr(),
+              ),
+            ),
+            SizedBox(height: TavoSpace.xl),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    key: const Key('delete_confirm_no'),
-                    onPressed: () => Navigator.pop(sheetContext, false),
-                    child: Text('tbl_delete_confirm_no'.tr()),
+                  child: TavoButton.secondary(
+                    label: 'cancel'.tr(),
+                    expand: true,
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
                   ),
                 ),
-                SizedBox(width: 8.w),
+                SizedBox(width: TavoSpace.md),
                 Expanded(
-                  child: FilledButton(
-                    key: const Key('delete_confirm_yes'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ColorsManager.errorColor,
-                    ),
-                    onPressed: () => Navigator.pop(sheetContext, true),
-                    child: Text('tbl_delete_confirm_yes'.tr()),
+                  flex: 2,
+                  child: TavoButton.primary(
+                    key: const Key('save_table'),
+                    label: 'save'.tr(),
+                    expand: true,
+                    onPressed: () {
+                      if (code.text.trim().isEmpty || typeId.isEmpty) return;
+                      Navigator.of(dialogContext).pop(true);
+                    },
                   ),
                 ),
               ],
@@ -1036,293 +860,192 @@ class _TableDetailSheetState extends State<_TableDetailSheet> {
         ),
       ),
     );
-    if (confirmed != true) return;
-    await widget.cubit.deleteTable(table.id);
-    if (!mounted) return;
-    Navigator.of(context).pop();
-  }
-}
 
-/// The live browser party: party size, bill and the guest's asks. Colour and
-/// copy separate it from the table's permanent properties above.
-class _SessionCard extends StatelessWidget {
-  const _SessionCard({
-    required this.session,
-    required this.busy,
-    required this.canSettle,
-    required this.onSettle,
-  });
-
-  final PanelSessionSummary session;
-  final bool busy;
-  final bool canSettle;
-  final VoidCallback onSettle;
-
-  String _amount(double value) => value == value.roundToDouble()
-      ? '${value.round()}'
-      : value.toStringAsFixed(2);
-
-  String _requestLabel(String type) {
-    switch (type) {
-      case 'bill':
-        return 'tbl_request_bill'.tr();
-      case 'card_machine':
-        return 'tbl_request_card_machine'.tr();
-      case 'waiter':
-        return 'tbl_request_waiter'.tr();
-      default:
-        return type;
+    if (saved == true) {
+      final seatCount = int.tryParse(seats.text.trim()) ?? 2;
+      final zoneText = zone.text.trim();
+      final ok = table == null
+          ? await cubit.createTable(
+              tableTypeId: typeId,
+              code: code.text.trim(),
+              seats: seatCount,
+              zone: zoneText.isEmpty ? null : zoneText,
+            )
+          : await cubit.updateTable(
+              table.id,
+              code: code.text.trim(),
+              seats: seatCount,
+              zone: zoneText.isEmpty ? null : zoneText,
+              clearZone: zoneText.isEmpty,
+            );
+      if (ok) _toast(table == null ? 'create_table'.tr() : 'save'.tr());
     }
+
+    code.dispose();
+    seats.dispose();
+    zone.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final currency = 'currency'.tr();
-    return Container(
-      key: const Key('sheet_session'),
-      width: double.infinity,
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E8),
-        border: Border.all(color: const Color(0xFFE8D9AE)),
-        borderRadius: BorderRadius.circular(14.r),
-      ),
+  Future<void> _confirmDelete(
+    BuildContext context,
+    TablesPanelCubit cubit,
+    PanelPhysicalTable table,
+  ) async {
+    final confirmed = await TavoSheet.show<bool>(
+      context,
+      title: 'delete_table_confirm'.tr(),
+      subtitle: table.code,
+      maxHeightFactor: 0.42,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            'delete_table_warning'.tr(),
+            style: TavoType.bodySmall.copyWith(
+              color: TavoColors.mutedForeground,
+            ),
+          ),
+          SizedBox(height: TavoSpace.xl),
           Row(
             children: [
-              const Icon(Iconsax.people, size: 16, color: Color(0xFF8D6E00)),
-              SizedBox(width: 6.w),
               Expanded(
-                child: Text(
-                  'tbl_session_guests'
-                      .tr(namedArgs: {'n': '${session.guests}'}),
-                  style: TextStyles.font14Black500Weight(context),
+                child: TavoButton.secondary(
+                  label: 'cancel'.tr(),
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(false),
                 ),
               ),
-              Text(
-                session.code,
-                key: const Key('sheet_session_code'),
-                style: TextStyles.font12DarkGray400Weight(context).copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
+              SizedBox(width: TavoSpace.md),
+              Expanded(
+                child: TavoButton.destructive(
+                  key: const Key('confirm_delete_table'),
+                  label: 'delete'.tr(),
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(true),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8.h),
-          Text(
-            'tbl_session_total'.tr(
-              namedArgs: {'amount': '${_amount(session.total)} $currency'},
-            ),
-            key: const Key('sheet_session_total'),
-            style: TextStyles.font16Black500Weight(context),
-          ),
-          SizedBox(height: 2.h),
-          Text(
-            'tbl_session_paid'.tr(
-              namedArgs: {'amount': '${_amount(session.paid)} $currency'},
-            ),
-            style: TextStyles.font12DarkGray400Weight(context),
-          ),
-          if (session.hasPendingRequests) ...[
-            SizedBox(height: 6.h),
-            Text(
-              'tbl_session_pending'.tr(
-                namedArgs: {'n': '${session.pendingRequests}'},
-              ),
-              key: const Key('sheet_session_pending'),
-              style: TextStyles.font12DarkGray400Weight(context).copyWith(
-                color: ColorsManager.errorColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (session.requests.isNotEmpty) ...[
-              SizedBox(height: 6.h),
-              Wrap(
-                spacing: 6.w,
-                runSpacing: 6.h,
-                children: [
-                  for (final request in session.requests)
-                    Container(
-                      key: Key('sheet_request_${request.type}'),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 8.w,
-                        vertical: 4.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: const Color(0xFFE8D9AE)),
-                      ),
-                      child: Text(
-                        _requestLabel(request.type),
-                        style: TextStyles.font12DarkGray400Weight(context)
-                            .copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ],
-          if (canSettle) ...[
-            SizedBox(height: 10.h),
-            FilledButton.icon(
-              key: const Key('sheet_settle'),
-              onPressed: busy ? null : onSettle,
-              icon: busy
-                  ? SizedBox(
-                      width: 16.w,
-                      height: 16.w,
-                      child: const CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Iconsax.tick_circle, size: 18),
-              label: Text('tbl_settle'.tr()),
-            ),
-            SizedBox(height: 4.h),
-            Text(
-              'tbl_settle_hint'.tr(),
-              style: TextStyles.font12DarkGray400Weight(context),
-            ),
-          ],
         ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await cubit.deleteTable(table.id);
+    if (ok) _toast('delete_table'.tr());
+  }
+
+  Map<FloorFilter, int> _filterCounts(TablesPanelLoaded state) {
+    final counts = <FloorFilter, int>{FloorFilter.all: state.tables.length};
+    for (final table in state.tables) {
+      if (table.floorStatus == 'occupied') {
+        counts[FloorFilter.occupied] = (counts[FloorFilter.occupied] ?? 0) + 1;
+      }
+      if (table.floorStatus == 'available') {
+        counts[FloorFilter.available] =
+            (counts[FloorFilter.available] ?? 0) + 1;
+      }
+      if (table.floorStatus == 'reserved') {
+        counts[FloorFilter.reserved] = (counts[FloorFilter.reserved] ?? 0) + 1;
+      }
+      if (table.hasAttention) {
+        counts[FloorFilter.attention] =
+            (counts[FloorFilter.attention] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+}
+
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: active ? TableColors.ink : Colors.white,
+        borderRadius: BorderRadius.circular(11.r),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(11.r),
+          child: Container(
+            width: 36.w,
+            height: 36.w,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(11.r),
+              border: Border.all(
+                color: active ? TableColors.ink : TableColors.line,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 17.sp,
+              color: active ? Colors.white : TableColors.ink,
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// The shared table form (code / seats / zone) used by the detail sheet's
-/// edit action and by the add-table sheet.
-class _TableForm extends StatefulWidget {
-  const _TableForm({
-    required this.initialCode,
-    required this.initialSeats,
-    required this.initialZone,
-    required this.zoneSuggestions,
-    required this.submitLabel,
-    required this.onSubmit,
-    this.closeOnSuccess = false,
+class _ViewTab extends StatelessWidget {
+  const _ViewTab({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
   });
 
-  final String initialCode;
-  final String initialSeats;
-  final String initialZone;
-  final List<String> zoneSuggestions;
-  final String submitLabel;
-  final Future<bool> Function(String code, int seats, String? zone) onSubmit;
-  final bool closeOnSuccess;
-
-  @override
-  State<_TableForm> createState() => _TableFormState();
-}
-
-class _TableFormState extends State<_TableForm> {
-  late final TextEditingController _code =
-      TextEditingController(text: widget.initialCode);
-  late final TextEditingController _seats =
-      TextEditingController(text: widget.initialSeats);
-  late final TextEditingController _zone =
-      TextEditingController(text: widget.initialZone);
-  String? _error;
-  bool _busy = false;
-
-  @override
-  void dispose() {
-    _code.dispose();
-    _seats.dispose();
-    _zone.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final code = _code.text.trim();
-    final seats = int.tryParse(_seats.text.trim());
-    if (code.isEmpty) {
-      setState(() => _error = 'tbl_form_invalid_code'.tr());
-      return;
-    }
-    if (seats == null || seats < 1 || seats > 50) {
-      setState(() => _error = 'tbl_form_invalid_seats'.tr());
-      return;
-    }
-    final zone = _zone.text.trim();
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    final ok = await widget.onSubmit(
-      code,
-      seats,
-      zone.isEmpty ? null : zone,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (!ok) _error = 'tbl_form_failed'.tr();
-    });
-    if (ok && widget.closeOnSuccess) Navigator.of(context).pop();
-  }
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          key: const Key('form_code'),
-          controller: _code,
-          decoration: InputDecoration(labelText: 'tbl_form_code'.tr()),
-        ),
-        SizedBox(height: 8.h),
-        TextField(
-          key: const Key('form_seats'),
-          controller: _seats,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: 'tbl_form_seats'.tr()),
-        ),
-        SizedBox(height: 8.h),
-        TextField(
-          key: const Key('form_zone'),
-          controller: _zone,
-          decoration: InputDecoration(labelText: 'tbl_form_zone'.tr()),
-        ),
-        if (widget.zoneSuggestions.isNotEmpty) ...[
-          SizedBox(height: 8.h),
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
+    return Material(
+      color: selected ? TableColors.ink : Colors.transparent,
+      borderRadius: BorderRadius.circular(9.r),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9.r),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 6.h),
+          child: Row(
             children: [
-              for (final zone in widget.zoneSuggestions)
-                ActionChip(
-                  key: Key('form_zone_chip_$zone'),
-                  label: Text(zone),
-                  onPressed: () => setState(() => _zone.text = zone),
+              Icon(
+                icon,
+                size: 13.sp,
+                color: selected ? Colors.white : TableColors.inkSoft,
+              ),
+              SizedBox(width: 4.w),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : TableColors.inkSoft,
                 ),
+              ),
             ],
           ),
-        ],
-        if (_error != null)
-          Padding(
-            padding: EdgeInsets.only(top: 8.h),
-            child: Text(
-              _error!,
-              key: const Key('form_error'),
-              style: TextStyles.font12DarkGray400Weight(context)
-                  .copyWith(color: ColorsManager.errorColor),
-            ),
-          ),
-        SizedBox(height: 12.h),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            key: const Key('form_submit'),
-            onPressed: _busy ? null : _submit,
-            child: Text(widget.submitLabel),
-          ),
         ),
-      ],
+      ),
     );
   }
 }

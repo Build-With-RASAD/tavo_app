@@ -1,68 +1,148 @@
-// ui/logic/tables_panel_cubit.dart
+// lib/feature/panel_tables/ui/logic/tables_panel_cubit.dart
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../data/model/floor_models.dart';
 import '../../data/model/table_models.dart';
 import '../../data/repo/tables_panel_repo.dart';
 
 part 'tables_panel_state.dart';
 
-/// Staff panel floor editor: table-type chips, the fractional `[0,1]`
-/// floor-plan canvas (local moves, persisted on save), per-table status
-/// toggles and — since the T28 redesign — create/update/delete + bulk
-/// zone/status mutations.
+/// The restaurant floor control room.
 ///
-/// Error style mirrors `PanelMenuCubit` (plain strings): `load` failures emit
-/// [TablesPanelError]; mutation failures keep the loaded state and surface a
-/// transient [TablesPanelLoaded.actionError] beside it.
+/// One aggregate read (`GET /floor`) drives everything: the today strip, the
+/// attention rail, the reservations rail, the floor canvas and the list. A
+/// 25 s silent poll keeps it live without flashing skeletons; a failed poll
+/// keeps the last good rows and raises [TablesPanelLoaded.stale] instead of
+/// replacing a working floor with an error page.
+///
+/// Mutations patch optimistically and then re-read the floor, so the card can
+/// never disagree with the server about who is sitting where.
 class TablesPanelCubit extends Cubit<TablesPanelState> {
-  TablesPanelCubit(this._repo, {required this.restaurantId})
-      : super(const TablesPanelInitial());
+  TablesPanelCubit(
+    this._repo, {
+    required this.restaurantId,
+    this.pollInterval = const Duration(seconds: 25),
+    this.autoRefresh = true,
+  }) : super(const TablesPanelInitial());
 
   final TablesPanelRepo _repo;
   final String restaurantId;
+  final Duration pollInterval;
 
-  /// Loads the types, auto-selects the first one and fetches its tables.
+  /// Tests turn this off so a widget test never leaves a pending timer.
+  final bool autoRefresh;
+
+  Timer? _timer;
+  bool _inFlight = false;
+
+  /// Loads the floor once, then keeps polling while the screen is alive.
   Future<void> load() async {
+    if (isClosed || _inFlight) return;
+    final current = state;
+    if (current is! TablesPanelLoaded) emit(const TablesPanelLoading());
+    await _fetch(silent: current is TablesPanelLoaded);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    if (!autoRefresh || _timer != null) return;
+    _timer = Timer.periodic(pollInterval, (_) => refresh(silent: true));
+  }
+
+  /// Pull-to-refresh / retry. Silent refreshes keep the current filters and
+  /// never blank the screen.
+  Future<void> refresh({bool silent = false}) async {
     if (isClosed) return;
-    emit(const TablesPanelLoading());
+    await _fetch(silent: silent);
+  }
+
+  Future<void> _fetch({required bool silent}) async {
+    if (_inFlight) return;
+    _inFlight = true;
+    final before = state;
     try {
-      final types = await _repo.getTableTypes(restaurantId);
+      final snapshot = await _repo.getFloor(restaurantId);
       if (isClosed) return;
-      if (types.isEmpty) {
-        emit(const TablesPanelLoaded(types: [], tables: []));
-        return;
-      }
-      final selected = types.first.id;
-      final tables =
-          await _repo.getPhysicalTables(restaurantId, selected);
-      if (isClosed) return;
-      emit(TablesPanelLoaded(
-        types: types,
-        selectedTypeId: selected,
-        tables: tables,
-      ));
+      final base = before is TablesPanelLoaded ? before : null;
+      emit(
+        TablesPanelLoaded(
+          types: snapshot.types,
+          tables: snapshot.tables,
+          kpi: snapshot.kpi,
+          reservations: snapshot.reservations,
+          generatedAt: snapshot.generatedAt,
+          selectedTypeId:
+              base?.selectedTypeId ??
+              (snapshot.types.isNotEmpty ? snapshot.types.first.id : null),
+          query: base?.query ?? '',
+          zone: base?.zone,
+          filter: base?.filter ?? FloorFilter.all,
+          stale: false,
+          arranging: base?.arranging ?? false,
+          selecting: base?.selecting ?? false,
+          selected: base?.selected ?? const {},
+          qr: base?.qr ?? const {},
+          qrLoadingId: base?.qrLoadingId,
+          qrError: base?.qrError,
+        ),
+      );
     } catch (e) {
       if (isClosed) return;
-      emit(TablesPanelError(_message(e)));
+      final base = state is TablesPanelLoaded
+          ? state as TablesPanelLoaded
+          : before is TablesPanelLoaded
+          ? before
+          : null;
+      if (base != null) {
+        emit(base.copyWith(stale: true));
+      } else {
+        emit(TablesPanelError(_message(e)));
+      }
+    } finally {
+      _inFlight = false;
     }
   }
 
-  Future<void> selectType(String id) async {
+  // ── Filters ────────────────────────────────────────────────────────────
+
+  void setQuery(String value) {
     final s = state;
     if (s is! TablesPanelLoaded) return;
-    emit(s.copyWith(selectedTypeId: id, clearError: true));
-    try {
-      final tables = await _repo.getPhysicalTables(restaurantId, id);
-      if (isClosed) return;
-      emit(s.copyWith(
-        selectedTypeId: id,
-        tables: tables,
-        clearAction: true,
-        clearError: true,
-      ));
-    } catch (e) {
-      if (isClosed) return;
-      emit(s.copyWith(actionError: _message(e), clearAction: true));
-    }
+    emit(s.copyWith(query: value));
+  }
+
+  void setZone(String? zone) {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(zone == null ? s.copyWith(clearZone: true) : s.copyWith(zone: zone));
+  }
+
+  void setFilter(FloorFilter filter) {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(filter: filter));
+  }
+
+  void clearFilters() {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(query: '', clearZone: true, filter: FloorFilter.all));
+  }
+
+  // ── Arrange mode ───────────────────────────────────────────────────────
+
+  void enterArrange() {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(arranging: true));
+  }
+
+  void exitArrange() {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(arranging: false));
   }
 
   /// Edit-mode snap-to-grid: rounds a fraction to the nearest 0.05 step
@@ -71,103 +151,153 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
       double.parse(((v / 0.05).round() * 0.05).toStringAsFixed(2));
 
   /// Local-only move, clamped to the `[0,1]` editor box. Persisted on save.
-  /// [snap] rounds to the 0.05 grid first (edit mode's snap toggle).
   void moveTable(String id, double x, double y, {bool snap = false}) {
     final s = state;
     if (s is! TablesPanelLoaded) return;
     final fx = snap ? snapToGrid(x) : x;
     final fy = snap ? snapToGrid(y) : y;
-    emit(s.copyWith(
-      tables: [
-        for (final t in s.tables)
-          if (t.id == id)
-            t.copyWith(x: fx.clamp(0.0, 1.0), y: fy.clamp(0.0, 1.0))
-          else
-            t,
-      ],
-    ));
+    emit(
+      s.copyWith(
+        tables: [
+          for (final t in s.tables)
+            if (t.id == id)
+              t.copyWith(x: fx.clamp(0.0, 1.0), y: fy.clamp(0.0, 1.0))
+            else
+              t,
+        ],
+      ),
+    );
   }
 
   /// Persists every table's fractional position to `PUT /floor-plan`.
-  /// Failures keep the positions and surface `actionError`.
-  Future<void> saveFloorPlan() async {
+  Future<bool> saveFloorPlan() async {
     final s = state;
-    if (s is! TablesPanelLoaded || s.saving) return;
+    if (s is! TablesPanelLoaded || s.saving) return false;
     emit(s.copyWith(saving: true, clearError: true));
     try {
-      await _repo.saveFloorPlan(
-        restaurantId,
-        [for (final t in s.tables) (id: t.id, x: t.x, y: t.y)],
-      );
-      if (isClosed) return;
-      emit(s.copyWith(saving: false));
+      await _repo.saveFloorPlan(restaurantId, [
+        for (final t in s.tables) (id: t.id, x: t.x, y: t.y),
+      ]);
+      if (isClosed) return false;
+      emit((state as TablesPanelLoaded).copyWith(saving: false));
+      await refresh(silent: true);
+      return true;
     } catch (e) {
-      if (isClosed) return;
-      emit(s.copyWith(saving: false, actionError: _message(e)));
+      if (isClosed) return false;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          saving: false,
+          actionError: _message(e),
+        ),
+      );
+      return false;
     }
   }
 
-  /// Cycles `available ↔ unavailable`; failures keep the row.
-  Future<void> toggleStatus(PanelPhysicalTable table) async {
+  // ── Selection (bulk) ───────────────────────────────────────────────────
+
+  void setSelecting(bool value) {
     final s = state;
     if (s is! TablesPanelLoaded) return;
-    emit(s.copyWith(actionId: table.id, clearError: true));
+    emit(s.copyWith(selecting: value, selected: value ? s.selected : const {}));
+  }
+
+  void toggleSelected(String id) {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    final next = {...s.selected};
+    if (!next.add(id)) next.remove(id);
+    emit(s.copyWith(selected: next, selecting: true));
+  }
+
+  void selectAllVisible() {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(
+      s.copyWith(
+        selecting: true,
+        selected: s.visibleTables.map((t) => t.id).toSet(),
+      ),
+    );
+  }
+
+  void clearSelection() {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(selected: const {}, selecting: false));
+  }
+
+  // ── Mutations ──────────────────────────────────────────────────────────
+
+  /// Cycles available ↔ inactive. Callers gate this on occupancy: hiding a
+  /// table with guests at it is never what staff meant. (The old screen sent
+  /// `unavailable`, which the backend enum rejects — every tap 400'd.)
+  Future<bool> toggleStatus(PanelPhysicalTable table) async {
+    final s = state;
+    if (s is! TablesPanelLoaded) return false;
+    final next = table.status == 'inactive' ? 'available' : 'inactive';
+    return setStatus(table.id, next);
+  }
+
+  Future<bool> setStatus(String id, String status) async {
+    final s = state;
+    if (s is! TablesPanelLoaded) return false;
+    emit(s.copyWith(actionId: id, clearError: true));
     try {
-      final next =
-          table.status == 'available' ? 'unavailable' : 'available';
       final updated = await _repo.updatePhysicalTableStatus(
-          restaurantId: restaurantId, id: table.id, status: next);
-      if (isClosed) return;
-      emit(s.copyWith(
-        tables: [
-          for (final t in s.tables)
-            if (t.id == table.id) _withLiveState(updated, table) else t
-        ],
-        clearAction: true,
-      ));
+        restaurantId: restaurantId,
+        id: id,
+        status: status,
+      );
+      if (isClosed) return false;
+      _patch(updated);
+      await refresh(silent: true);
+      return true;
     } catch (e) {
-      if (isClosed) return;
-      emit(s.copyWith(actionError: _message(e), clearAction: true));
+      if (isClosed) return false;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
+      return false;
     }
   }
 
-  /// POST /tables/:tableTypeId/physical for the selected type (T28).
-  /// Returns `true` when the table was created.
   Future<bool> createTable({
+    required String tableTypeId,
     required String code,
     required int seats,
     String? zone,
   }) async {
     final s = state;
     if (s is! TablesPanelLoaded || s.creating) return false;
-    final typeId = s.selectedTypeId;
-    if (typeId == null) return false;
     emit(s.copyWith(creating: true, clearError: true));
     try {
-      final created = await _repo.createPhysicalTable(
+      await _repo.createPhysicalTable(
         restaurantId: restaurantId,
-        tableTypeId: typeId,
+        tableTypeId: tableTypeId,
         code: code,
         seats: seats,
         zone: zone,
       );
       if (isClosed) return false;
-      final base = _loaded(s);
-      emit(base.copyWith(
-        tables: [...base.tables, created],
-        creating: false,
-        clearError: true,
-      ));
+      emit((state as TablesPanelLoaded).copyWith(creating: false));
+      await refresh(silent: true);
       return true;
     } catch (e) {
       if (isClosed) return false;
-      emit(_loaded(s).copyWith(creating: false, actionError: _message(e)));
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          creating: false,
+          actionError: _message(e),
+        ),
+      );
       return false;
     }
   }
 
-  /// PUT /physical-tables/:id — code/seats/zone edit from the detail sheet.
-  /// Returns `true` when the table was updated.
   Future<bool> updateTable(
     String id, {
     required String code,
@@ -188,28 +318,21 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
         clearZone: clearZone,
       );
       if (isClosed) return false;
-      final base = _loaded(s);
-      final previous =
-          base.tables.firstWhere((t) => t.id == id, orElse: () => updated);
-      emit(base.copyWith(
-        tables: [
-          for (final t in base.tables)
-            if (t.id == id) _withLiveState(updated, previous) else t
-        ],
-        clearAction: true,
-        clearError: true,
-      ));
+      _patch(updated);
+      await refresh(silent: true);
       return true;
     } catch (e) {
       if (isClosed) return false;
-      emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
       return false;
     }
   }
 
-  /// DELETE /physical-tables/:id — the backend's 409 blockers (open order /
-  /// active reservation) surface as [TablesPanelLoaded.actionError].
-  /// Returns `true` when the table was deleted.
   Future<bool> deleteTable(String id) async {
     final s = state;
     if (s is! TablesPanelLoaded) return false;
@@ -217,28 +340,34 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
     try {
       await _repo.deletePhysicalTable(restaurantId: restaurantId, id: id);
       if (isClosed) return false;
-      final base = _loaded(s);
-      emit(base.copyWith(
-        tables: [for (final t in base.tables) if (t.id != id) t],
-        clearAction: true,
-        clearError: true,
-      ));
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          tables: [
+            for (final t in s.tables)
+              if (t.id != id) t,
+          ],
+          selected: {...s.selected}..remove(id),
+        ),
+      );
+      await refresh(silent: true);
       return true;
     } catch (e) {
       if (isClosed) return false;
-      emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
       return false;
     }
   }
 
-  /// POST /physical-tables/:id/settle — staff recorded the cash/counter bill.
-  /// On success the floor is re-fetched so the live-session card disappears and
-  /// any other tab sees the same closed state. Returns `true` when settled.
+  /// POST /physical-tables/:id/settle — the counter recorded cash/card.
+  /// The backend closes the party and frees the table; re-read to prove it.
   Future<bool> settleTable(String id, {double? amount}) async {
     final s = state;
     if (s is! TablesPanelLoaded) return false;
-    final typeId = s.selectedTypeId;
-    if (typeId == null) return false;
     emit(s.copyWith(actionId: id, clearError: true));
     try {
       await _repo.settleTable(
@@ -247,81 +376,219 @@ class TablesPanelCubit extends Cubit<TablesPanelState> {
         amount: amount,
       );
       if (isClosed) return false;
-      final tables = await _repo.getPhysicalTables(restaurantId, typeId);
-      if (isClosed) return false;
-      final base = _loaded(s);
-      emit(base.copyWith(
-        tables: tables,
-        clearAction: true,
-        clearError: true,
-      ));
+      await refresh(silent: true);
       return true;
     } catch (e) {
       if (isClosed) return false;
-      emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
       return false;
     }
   }
 
-  /// Multi-select bulk: assign the same zone to every selected table (T28 §8).
-  Future<void> bulkSetZone(List<String> ids, String zone) =>
-      _bulk(ids, (id) => _repo.updatePhysicalTable(
-            restaurantId: restaurantId,
-            id: id,
-            zone: zone,
-          ));
-
-  /// Multi-select bulk: set the same status on every selected table (T28 §8).
-  Future<void> bulkSetStatus(List<String> ids, String status) =>
-      _bulk(ids, (id) => _repo.updatePhysicalTableStatus(
-            restaurantId: restaurantId,
-            id: id,
-            status: status,
-          ));
-
-  Future<void> _bulk(
-    List<String> ids,
-    Future<PanelPhysicalTable> Function(String id) run,
-  ) async {
+  /// Clears one guest ask. The badge disappears from every surface because
+  /// the floor is re-read rather than patched locally.
+  Future<bool> handleRequest(String tableId, String requestId) async {
     final s = state;
-    if (s is! TablesPanelLoaded || ids.isEmpty) return;
-    emit(s.copyWith(actionId: ids.first, clearError: true));
+    if (s is! TablesPanelLoaded) return false;
+    emit(s.copyWith(actionId: tableId, clearError: true));
     try {
-      for (final id in ids) {
-        final updated = await run(id);
-        if (isClosed) return;
-        final base = _loaded(s);
-        final previous =
-            base.tables.firstWhere((t) => t.id == id, orElse: () => updated);
-        emit(base.copyWith(
-          tables: [
-            for (final t in base.tables)
-              if (t.id == id) _withLiveState(updated, previous) else t
-          ],
-        ));
-      }
-      if (isClosed) return;
-      emit(_loaded(s).copyWith(clearAction: true, clearError: true));
+      await _repo.handleServiceRequest(
+        restaurantId: restaurantId,
+        tableId: tableId,
+        requestId: requestId,
+      );
+      if (isClosed) return false;
+      await refresh(silent: true);
+      return true;
     } catch (e) {
-      if (isClosed) return;
-      emit(_loaded(s).copyWith(clearAction: true, actionError: _message(e)));
+      if (isClosed) return false;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
+      return false;
     }
   }
 
-  /// Mutation endpoints return a raw `PhysicalTable`; the live party is only
-  /// enriched on the physical-tables list. Keep the card the staff just saw
-  /// instead of making it vanish until the next poll.
-  PanelPhysicalTable _withLiveState(
-    PanelPhysicalTable updated,
-    PanelPhysicalTable previous,
-  ) =>
-      updated.copyWith(
-        occupied: updated.occupied ?? previous.occupied,
-        openSession: previous.openSession,
-      );
+  /// Door actions on today's arrivals. Both re-read the floor: seating a
+  /// party changes two tables' worth of state in the real system.
+  Future<bool> seatReservation(String reservationId) =>
+      _reservationAction(reservationId, 'seat');
 
-  TablesPanelLoaded _loaded(TablesPanelLoaded fallback) =>
-      state is TablesPanelLoaded ? state as TablesPanelLoaded : fallback;
+  Future<bool> markReservationNoShow(String reservationId) =>
+      _reservationAction(reservationId, 'no-show');
+
+  Future<bool> _reservationAction(String id, String action) async {
+    final s = state;
+    if (s is! TablesPanelLoaded) return false;
+    emit(s.copyWith(actionId: id, clearError: true));
+    try {
+      await _repo.reservationAction(
+        restaurantId: restaurantId,
+        id: id,
+        action: action,
+      );
+      if (isClosed) return false;
+      await refresh(silent: true);
+      return true;
+    } catch (e) {
+      if (isClosed) return false;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
+      return false;
+    }
+  }
+
+  Future<void> bulkSetZone(List<String> ids, String zone) async {
+    if (ids.isEmpty) return;
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(actionId: ids.first, clearError: true));
+    try {
+      for (final id in ids) {
+        final updated = await _repo.updatePhysicalTable(
+          restaurantId: restaurantId,
+          id: id,
+          zone: zone,
+        );
+        if (isClosed) return;
+        _patch(updated);
+      }
+      await refresh(silent: true);
+    } catch (e) {
+      if (isClosed) return;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
+    }
+  }
+
+  Future<void> bulkSetStatus(List<String> ids, String status) async {
+    if (ids.isEmpty) return;
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(s.copyWith(actionId: ids.first, clearError: true));
+    try {
+      for (final id in ids) {
+        final updated = await _repo.updatePhysicalTableStatus(
+          restaurantId: restaurantId,
+          id: id,
+          status: status,
+        );
+        if (isClosed) return;
+        _patch(updated);
+      }
+      await refresh(silent: true);
+    } catch (e) {
+      if (isClosed) return;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearAction: true,
+          actionError: _message(e),
+        ),
+      );
+    }
+  }
+
+  // ── QR ─────────────────────────────────────────────────────────────────
+
+  /// Idempotent: reprinting a card must never invalidate the printed one.
+  Future<PanelTableQr?> loadQr(String tableId) async {
+    final s = state;
+    if (s is! TablesPanelLoaded) return null;
+    final cached = s.qr[tableId];
+    if (cached != null) return cached;
+    if (s.qrLoadingId == tableId) return null;
+    emit(s.copyWith(qrLoadingId: tableId, clearQrError: true));
+    try {
+      final qr = await _repo.getTableQr(
+        restaurantId: restaurantId,
+        tableId: tableId,
+      );
+      if (isClosed) return null;
+      final now = state as TablesPanelLoaded;
+      emit(now.copyWith(qr: {...now.qr, tableId: qr}, clearQrLoading: true));
+      return qr;
+    } catch (e) {
+      if (isClosed) return null;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearQrLoading: true,
+          qrError: _message(e),
+        ),
+      );
+      return null;
+    }
+  }
+
+  /// Destructive: every previously printed card for this table dies.
+  Future<PanelTableQr?> rotateQr(String tableId) async {
+    final s = state;
+    if (s is! TablesPanelLoaded) return null;
+    emit(s.copyWith(qrLoadingId: tableId, clearQrError: true));
+    try {
+      final qr = await _repo.rotateTableQr(
+        restaurantId: restaurantId,
+        tableId: tableId,
+      );
+      if (isClosed) return null;
+      final now = state as TablesPanelLoaded;
+      emit(now.copyWith(qr: {...now.qr, tableId: qr}, clearQrLoading: true));
+      return qr;
+    } catch (e) {
+      if (isClosed) return null;
+      emit(
+        (state as TablesPanelLoaded).copyWith(
+          clearQrLoading: true,
+          qrError: _message(e),
+        ),
+      );
+      return null;
+    }
+  }
+
+  void clearActionError() {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    if (s.actionError == null) return;
+    emit(s.copyWith(clearError: true));
+  }
+
+  void _patch(PanelPhysicalTable updated) {
+    final s = state;
+    if (s is! TablesPanelLoaded) return;
+    emit(
+      s.copyWith(
+        tables: [
+          for (final t in s.tables)
+            if (t.id == updated.id) updated else t,
+        ],
+        clearAction: true,
+        clearError: true,
+      ),
+    );
+  }
 
   String _message(Object e) => e.toString().replaceFirst('Exception: ', '');
+
+  @override
+  Future<void> close() async {
+    _timer?.cancel();
+    _timer = null;
+    return super.close();
+  }
 }

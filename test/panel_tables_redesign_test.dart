@@ -1,18 +1,19 @@
-// test/panel_tables_redesign_test.dart — Wave E3 Task 28 (tables view redesign)
+// test/panel_tables_redesign_test.dart
 //
-// Spec: docs/superpowers/specs/2026-09-30-tables-redesign.md — mode-based live
-// floor (colors/sizing/legend/backdrops), detail sheet + actions, role gating,
-// 0.05 snap math, CRUD through the fake repo, delete confirm, onOpenOrders,
-// error+retry and the composed empty state.
+// Widget contract for the floor control room: role gating, the today strip,
+// the attention rail, floor/list switching, the table sheet (QR, asks, bill,
+// settle), delete confirmation, onOpenOrders, error+retry, and the empty
+// floor. Money is always "sales", never profit.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tavo/core/network/api_service.dart';
 import 'package:tavo/core/widgets/state/async_state_view.dart';
 import 'package:tavo/feature/auth/ui/data/models/staff_restaurant.dart';
+import 'package:tavo/feature/panel_tables/data/model/floor_models.dart';
 import 'package:tavo/feature/panel_tables/data/model/table_models.dart';
 import 'package:tavo/feature/panel_tables/data/repo/tables_panel_repo.dart';
-import 'package:tavo/feature/panel_tables/ui/logic/tables_panel_cubit.dart';
+import 'package:tavo/feature/panel_tables/ui/screens/table_qr_batch_screen.dart';
 import 'package:tavo/feature/restaurant_panel/ui/screens/tables_screen.dart';
 
 import 'helpers/app_shell.dart';
@@ -37,60 +38,252 @@ const _viewerVenue = StaffRestaurant(
   status: 'active',
 );
 
-class _FakeTablesRepo extends TablesPanelRepo {
-  _FakeTablesRepo() : super(api: ApiService());
+Map<String, dynamic> _request({
+  String id = 'req1',
+  String type = 'bill',
+  String createdAt = '2026-10-26T12:00:00.000Z',
+}) =>
+    {
+      'id': id,
+      'type': type,
+      'guestLabel': 'Guest 2',
+      'createdAt': createdAt,
+    };
 
-  List<PanelTableType> types = [];
-  List<PanelPhysicalTable> tables = [];
-  bool failLoad = false;
+Map<String, dynamic> _session({
+  String id = 's1',
+  String code = 'HYJQ',
+  int guests = 2,
+  double total = 133.40,
+  double paid = 0,
+  List<Map<String, dynamic>> requests = const [],
+}) =>
+    {
+      'id': id,
+      '_id': id,
+      'code': code,
+      'status': 'open',
+      'guests': guests,
+      'subtotal': total - 13.4,
+      'tax': 13.4,
+      'total': total,
+      'paid': paid,
+      'pendingRequests': requests.length,
+      'requests': requests,
+      'openedAt': '2026-10-26T10:30:00.000Z',
+    };
+
+Map<String, dynamic> _table({
+  required String id,
+  required String code,
+  String status = 'available',
+  String displayStatus = 'available',
+  String? zone = 'Indoor',
+  int seats = 4,
+  Map<String, dynamic>? session,
+  List<Map<String, dynamic>> orders = const [],
+  Map<String, dynamic>? reservation,
+  List<Map<String, dynamic>> requests = const [],
+  double? x,
+  double? y,
+}) =>
+    {
+      '_id': id,
+      'id': id,
+      'code': code,
+      'seats': seats,
+      'status': status,
+      'displayStatus': displayStatus,
+      'zone': zone,
+      'tableTypeId': {'_id': 'type1', 'label': 'Indoor'},
+      'position': x == null ? null : {'x': x, 'y': y},
+      'session': session,
+      'orders': orders,
+      'reservation': reservation,
+      'pendingRequests': requests,
+      'occupied': displayStatus == 'occupied',
+    };
+
+Map<String, dynamic> _floor({
+  List<Map<String, dynamic>>? tables,
+  List<Map<String, dynamic>>? reservations,
+  List<Map<String, dynamic>>? types,
+}) =>
+    {
+      'kpi': {
+        'salesToday': 1250.5,
+        'ordersToday': 12,
+        'avgTicket': 104.21,
+        'openBills': 1,
+        'openBillsTotal': 133.4,
+        'occupiedTables': 1,
+        'totalTables': 3,
+        'occupancyPct': 33,
+        'reservationsToday': 2,
+        'seatedNow': 2,
+        'nextReservationAt': '2026-10-26T19:30:00.000Z',
+        'waitlistCount': 0,
+      },
+      'types': types ??
+          [
+            {
+              'id': 'type1',
+              'label': 'Indoor',
+              'seatsPerTable': 4,
+              'tablesCount': 3,
+            },
+          ],
+      'tables': tables ??
+          [
+            _table(
+              id: 't1',
+              code: 'T1-1',
+              displayStatus: 'occupied',
+              session: _session(requests: [_request()]),
+              orders: [
+                {
+                  'id': 'o1',
+                  'orderNumber': 'ORD-7212',
+                  'status': 'preparing',
+                  'totalPrice': 133.40,
+                  'subtotal': 120,
+                  'tax': 13.4,
+                  'itemCount': 2,
+                  'note': 'Allergy: nuts',
+                  'items': [
+                    {
+                      'name': 'Chicken Kabsa',
+                      'nameAr': 'كبسة دجاج',
+                      'quantity': 2,
+                      'unitPrice': 60,
+                      'lineTotal': 120,
+                      'note': 'Extra saffron',
+                      'specifications': [
+                        {'name': 'Saffron rice', 'price': 0},
+                      ],
+                    },
+                  ],
+                },
+              ],
+              x: 0.3,
+              y: 0.35,
+            ),
+            _table(id: 't2', code: 'T1-2', x: 0.7, y: 0.35),
+            _table(
+              id: 't3',
+              code: 'T2-1',
+              status: 'reserved',
+              displayStatus: 'reserved',
+              zone: 'Terrace',
+              reservation: {
+                'id': 'res1',
+                'startAt': '2026-10-26T19:30:00.000Z',
+                'guestsCount': 4,
+                'status': 'confirmed',
+                'customerName': 'Sara',
+                'customerPhone': '0550000000',
+                'tableIds': ['t3'],
+              },
+              x: 0.3,
+              y: 0.75,
+            ),
+          ],
+      'reservations': reservations ??
+          [
+            {
+              'id': 'res1',
+              'startAt': '2026-10-26T19:30:00.000Z',
+              'guestsCount': 4,
+              'status': 'confirmed',
+              'customerName': 'Sara',
+              'customerPhone': '0550000000',
+              'tableIds': ['t3'],
+            },
+          ],
+      'generatedAt': '2026-10-26T12:00:00.000Z',
+    };
+
+class _FakeTablesRepo extends TablesPanelRepo {
+  _FakeTablesRepo({Map<String, dynamic>? floor})
+      : floor = floor ?? _floor(),
+        super(api: ApiService());
+
+  Map<String, dynamic> floor;
+  bool failNextLoad = false;
   final List<String> calls = [];
 
+  List<Map<String, dynamic>> get _tables =>
+      (floor['tables'] as List).cast<Map<String, dynamic>>();
+
   @override
-  Future<List<PanelTableType>> getTableTypes(String restaurantId) async {
-    if (failLoad) {
-      failLoad = false; // retry recovers
-      throw Exception('boom');
+  Future<PanelFloorSnapshot> getFloor(String restaurantId) async {
+    calls.add('getFloor');
+    if (failNextLoad) {
+      failNextLoad = false;
+      throw Exception('The floor could not be loaded');
     }
-    return types;
+    return PanelFloorSnapshot.fromJson(floor);
   }
 
   @override
-  Future<List<PanelPhysicalTable>> getPhysicalTables(
-      String restaurantId, String tableTypeId) async {
-    calls.add('getPhysical:$tableTypeId');
-    return tables.where((t) => t.tableTypeId == tableTypeId).toList();
-  }
-
-  @override
-  Future<int> saveFloorPlan(String restaurantId,
-      List<({String id, double? x, double? y})> positions) async {
-    calls.add('saveFloor:${positions.length}');
-    return positions.length;
-  }
-
-  @override
-  Future<PanelPhysicalTable> updatePhysicalTableStatus(
-      {required String restaurantId,
-      required String id,
-      required String status}) async {
-    calls.add('status:$id:$status');
-    final i = tables.indexWhere((t) => t.id == id);
-    final t = tables[i];
-    tables[i] = PanelPhysicalTable(
-      id: t.id,
-      tableTypeId: t.tableTypeId,
-      code: t.code,
-      seats: t.seats,
-      status: status,
-      zone: t.zone,
-      occupied: t.occupied,
-      openSession: t.openSession,
-      x: t.x,
-      y: t.y,
+  Future<PanelSessionSummary> handleServiceRequest({
+    required String restaurantId,
+    required String tableId,
+    required String requestId,
+  }) async {
+    calls.add('handle:$tableId:$requestId');
+    for (final table in _tables) {
+      if (table['id'] != tableId) continue;
+      table['pendingRequests'] = <Map<String, dynamic>>[];
+      final session = table['session'];
+      if (session is Map) {
+        session['requests'] = <Map<String, dynamic>>[];
+        session['pendingRequests'] = 0;
+      }
+    }
+    return PanelSessionSummary.fromJson(
+      _session(requests: const <Map<String, dynamic>>[]),
     );
-    // The status endpoint returns the raw PhysicalTable; the live session is
-    // only enriched on the physical-tables list. Model that honestly.
-    return tables[i].copyWith(clearOpenSession: true);
+  }
+
+  @override
+  Future<PanelSessionSummary> settleTable({
+    required String restaurantId,
+    required String id,
+    double? amount,
+  }) async {
+    calls.add('settle:$id');
+    for (final table in _tables) {
+      if (table['id'] != id) continue;
+      table['session'] = null;
+      table['orders'] = <Map<String, dynamic>>[];
+      table['displayStatus'] = 'available';
+      table['occupied'] = false;
+    }
+    return PanelSessionSummary.fromJson(_session(paid: 133.40));
+  }
+
+  @override
+  Future<bool> deletePhysicalTable({
+    required String restaurantId,
+    required String id,
+  }) async {
+    calls.add('delete:$id');
+    floor['tables'] = [
+      for (final table in _tables)
+        if (table['id'] != id) table,
+    ];
+    return true;
+  }
+
+  @override
+  Future<PanelPhysicalTable> updatePhysicalTableStatus({
+    required String restaurantId,
+    required String id,
+    required String status,
+  }) async {
+    calls.add('status:$id:$status');
+    return PanelPhysicalTable.fromJson(_table(id: id, code: 'T1-1'));
   }
 
   @override
@@ -101,83 +294,56 @@ class _FakeTablesRepo extends TablesPanelRepo {
     required int seats,
     String? zone,
   }) async {
-    calls.add('create:$tableTypeId:$code:$seats:${zone ?? 'null'}');
-    final created = PanelPhysicalTable(
-      id: 'new_$code',
-      tableTypeId: tableTypeId,
-      code: code,
-      seats: seats,
-      status: 'available',
-      zone: zone,
-    );
-    tables = [...tables, created];
-    return created;
+    calls.add('create:$code');
+    return PanelPhysicalTable.fromJson(_table(id: 'new', code: code));
   }
 
   @override
-  Future<PanelPhysicalTable> updatePhysicalTable({
+  Future<int> saveFloorPlan(
+    String restaurantId,
+    List<({String id, double? x, double? y})> rows,
+  ) async {
+    calls.add('saveFloor:${rows.length}');
+    return rows.length;
+  }
+
+  @override
+  Future<PanelTableQr> getTableQr({
+    required String restaurantId,
+    required String tableId,
+  }) async {
+    calls.add('qr:$tableId');
+    return PanelTableQr(
+      tableId: tableId,
+      code: 'T1-1',
+      url: 'https://tavo.abwabdigital.com/t/token-$tableId-v1',
+      version: 1,
+    );
+  }
+
+  @override
+  Future<PanelTableQr> rotateTableQr({
+    required String restaurantId,
+    required String tableId,
+  }) async {
+    calls.add('rotate:$tableId');
+    return PanelTableQr(
+      tableId: tableId,
+      code: 'T1-1',
+      url: 'https://tavo.abwabdigital.com/t/token-$tableId-v2',
+      version: 2,
+    );
+  }
+
+  @override
+  Future<void> reservationAction({
     required String restaurantId,
     required String id,
-    String? code,
-    int? seats,
-    String? zone,
-    bool clearZone = false,
+    required String action,
   }) async {
-    calls.add('update:$id:${code ?? '-'}:${seats ?? '-'}:'
-        '${clearZone ? 'null' : (zone ?? '-')}');
-    final i = tables.indexWhere((t) => t.id == id);
-    final t = tables[i];
-    tables[i] = PanelPhysicalTable(
-      id: t.id,
-      tableTypeId: t.tableTypeId,
-      code: code ?? t.code,
-      seats: seats ?? t.seats,
-      status: t.status,
-      zone: clearZone ? null : (zone ?? t.zone),
-      occupied: t.occupied,
-      openSession: t.openSession,
-      x: t.x,
-      y: t.y,
-    );
-    // Same raw-response shape as the status endpoint.
-    return tables[i].copyWith(clearOpenSession: true);
-  }
-
-  @override
-  Future<bool> deletePhysicalTable(
-      {required String restaurantId, required String id}) async {
-    calls.add('delete:$id');
-    tables = tables.where((t) => t.id != id).toList();
-    return true;
-  }
-
-  @override
-  Future<PanelSessionSummary> settleTable({
-    required String restaurantId,
-    required String id,
-    double? amount,
-  }) async {
-    calls.add('settle:$id:${amount ?? '-'}');
-    final i = tables.indexWhere((t) => t.id == id);
-    final session = tables[i].openSession!;
-    tables[i] = tables[i].copyWith(clearOpenSession: true);
-    return PanelSessionSummary(
-      id: session.id,
-      code: session.code,
-      status: 'closed',
-      guests: session.guests,
-      subtotal: session.subtotal,
-      tax: session.tax,
-      total: session.total,
-      paid: session.total,
-      pendingRequests: session.pendingRequests,
-      requests: session.requests,
-    );
+    calls.add('reservation:$id:$action');
   }
 }
-
-PanelTableType _type({String id = 't1', String label = 'Indoor'}) =>
-    PanelTableType(id: id, label: label, seatsPerTable: 4, tablesCount: 8);
 
 Future<void> _pump(
   WidgetTester tester,
@@ -185,531 +351,204 @@ Future<void> _pump(
   StaffRestaurant venue = _ownerVenue,
   VoidCallback? onOpenOrders,
 }) async {
+  // The screen is laid out for a phone; keep ScreenUtil's `.w/.h/.sp` in the
+  // same ratio the app ships with so rail heights and type stay coherent.
+  tester.view.physicalSize = const Size(400, 812);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
   GetIt.instance.registerLazySingleton<TablesPanelRepo>(() => repo);
   addTearDown(GetIt.instance.reset);
   await tester.pumpWidget(appShell(TablesScreen(
     restaurantId: 'r1',
     venue: venue,
     onOpenOrders: onOpenOrders,
+    autoRefresh: false,
   )));
   await pumpUntil(
-      tester, () => find.byType(ListSkeleton).evaluate().isNotEmpty);
+    tester,
+    () =>
+        find.byKey(const Key('tables_scroll')).evaluate().isNotEmpty ||
+        find.byType(ErrorStateView).evaluate().isNotEmpty ||
+        find.text('No tables yet').evaluate().isNotEmpty,
+  );
   await tester.pumpAndSettle();
 }
 
-Color _ringOf(WidgetTester tester, String id) {
-  final card = tester.widget<Container>(find.byKey(Key('table_card_$id')));
-  final decoration = card.decoration! as BoxDecoration;
-  return (decoration.border as Border).top.color;
+/// Scrolls [finder] into view inside the nearest scrollable, then taps it.
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
 }
 
 void main() {
   setUpAll(initTestEnv);
 
-  testWidgets(
-      'view mode (default) colors tables: occupied orange, reserved red, '
-      'available green, inactive grey + 0.55 dimming', (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'reserved', occupied: true, x: 0.3, y: 0.3),
-        const PanelPhysicalTable(
-            id: 'p2', tableTypeId: 't1', code: 'IN-2', seats: 4,
-            status: 'reserved', x: 0.6, y: 0.3),
-        const PanelPhysicalTable(
-            id: 'p3', tableTypeId: 't1', code: 'IN-3', seats: 4,
-            status: 'available', x: 0.3, y: 0.7),
-        const PanelPhysicalTable(
-            id: 'p4', tableTypeId: 't1', code: 'IN-4', seats: 4,
-            status: 'inactive', x: 0.6, y: 0.7),
-      ];
+  testWidgets('owner sees the control room: today strip, rails and tools',
+      (tester) async {
+    final repo = _FakeTablesRepo();
     await _pump(tester, repo);
 
-    // default mode is the view segment
-    final viewChip = tester.widget<ChoiceChip>(find.byKey(const Key('mode_view')));
-    expect(viewChip.selected, isTrue);
+    expect(find.text('Live floor'), findsOneWidget);
+    expect(find.text('1250.50 SAR'), findsOneWidget);
+    expect(find.text('33%'), findsOneWidget);
+    expect(find.byKey(const Key('today_strip')), findsOneWidget);
 
-    expect(_ringOf(tester, 'p1'), Colors.orange); // occupied beats reserved
-    expect(_ringOf(tester, 'p2'), Colors.red);
-    expect(_ringOf(tester, 'p3'), Colors.green);
-    expect(_ringOf(tester, 'p4'), Colors.grey);
+    expect(find.text('Needs attention'), findsOneWidget);
+    expect(find.byKey(const Key('attention_rail')), findsOneWidget);
+    expect(find.byKey(const Key('reservations_rail')), findsOneWidget);
+    expect(find.byKey(const Key('floor_canvas')), findsOneWidget);
 
-    expect(
-        tester.widget<Opacity>(find.byKey(const Key('dim_p4'))).opacity,
-        0.55);
-    expect(
-        tester.widget<Opacity>(find.byKey(const Key('dim_p1'))).opacity, 1.0);
-    // inactive tables are dimmed, never hidden
-    expect(find.byKey(const Key('table_p4')), findsOneWidget);
-  });
-
-  testWidgets('sizes table cards by the seats buckets 44/52/64/76',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 's1', tableTypeId: 't1', code: 'S1', seats: 1,
-            status: 'available', x: 0.2, y: 0.3),
-        const PanelPhysicalTable(
-            id: 's2', tableTypeId: 't1', code: 'S2', seats: 3,
-            status: 'available', x: 0.5, y: 0.3),
-        const PanelPhysicalTable(
-            id: 's3', tableTypeId: 't1', code: 'S3', seats: 6,
-            status: 'available', x: 0.2, y: 0.7),
-        const PanelPhysicalTable(
-            id: 's4', tableTypeId: 't1', code: 'S4', seats: 8,
-            status: 'available', x: 0.6, y: 0.7),
-      ];
-    await _pump(tester, repo);
-
-    expect(tester.getSize(find.byKey(const Key('table_s1'))).width, 44);
-    expect(tester.getSize(find.byKey(const Key('table_s2'))).width, 52);
-    expect(tester.getSize(find.byKey(const Key('table_s3'))).width, 64);
-    expect(tester.getSize(find.byKey(const Key('table_s4'))).width, 76);
-  });
-
-  testWidgets('zone legend counts zones; backdrops only for positioned zones',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'z1', tableTypeId: 't1', code: 'Z1', seats: 4,
-            status: 'available', zone: 'Indoor', x: 0.3, y: 0.3),
-        const PanelPhysicalTable(
-            id: 'z2', tableTypeId: 't1', code: 'Z2', seats: 4,
-            status: 'available', zone: 'Indoor', x: 0.6, y: 0.6),
-        const PanelPhysicalTable(
-            id: 'z3', tableTypeId: 't1', code: 'Z3', seats: 4,
-            status: 'available', zone: 'Garden'), // unpositioned → tray
-      ];
-    await _pump(tester, repo);
-
-    expect(find.byKey(const Key('zone_legend')), findsOneWidget);
-    expect(find.text('Indoor • 2'), findsOneWidget);
-    expect(find.text('Garden • 1'), findsOneWidget);
-    expect(find.byKey(const Key('zone_backdrop_Indoor')), findsOneWidget);
-    expect(find.byKey(const Key('zone_backdrop_Garden')), findsNothing);
-    expect(find.byKey(const Key('zone_backdrop_label_Garden')), findsNothing);
-    expect(find.byKey(const Key('floor_tray')), findsOneWidget); // Z3 in tray
-  });
-
-  testWidgets('tap opens the detail sheet with edit/toggle/delete actions',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', zone: 'Indoor', x: 0.4, y: 0.4),
-      ];
-    await _pump(tester, repo);
-
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('table_sheet')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_title')), findsOneWidget);
-    expect(tester.widget<Text>(find.byKey(const Key('sheet_title'))).data,
-        'IN-1'); // sheet title carries the code
-    expect(find.byKey(const Key('sheet_edit')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_toggle')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_delete')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_zone')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_open_orders')), findsNothing);
-  });
-
-  testWidgets(
-      'occupied sheet shows the hint and fires onOpenOrders (no start-order)',
-      (tester) async {
-    var opened = 0;
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', occupied: true, x: 0.4, y: 0.4),
-      ];
-    await _pump(tester, repo, onOpenOrders: () => opened++);
-
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('sheet_occupied')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_open_orders')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_start_order')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('sheet_open_orders')));
-    await tester.pumpAndSettle();
-    expect(opened, 1);
-  });
-
-  testWidgets('live session card shows the bill and settles through the cubit',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-          id: 'p1',
-          tableTypeId: 't1',
-          code: 'IN-1',
-          seats: 4,
-          status: 'available',
-          x: 0.4,
-          y: 0.4,
-          openSession: PanelSessionSummary(
-            id: 's1',
-            code: 'AB12',
-            status: 'open',
-            guests: 2,
-            subtotal: 100,
-            tax: 15,
-            total: 115,
-            paid: 25,
-            pendingRequests: 1,
-            requests: [
-              PanelServiceRequestSummary(
-                type: 'bill',
-                guestLabel: 'Nora',
-                createdAt: '2026-10-24T20:00:00.000Z',
-              ),
-            ],
-          ),
-        ),
-      ];
-    await _pump(tester, repo);
-
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('sheet_session')), findsOneWidget);
-    expect(find.text('AB12'), findsOneWidget);
-    expect(find.byKey(const Key('sheet_session_pending')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_settle')), findsOneWidget);
-    expect(repo.calls.where((c) => c == 'getPhysical:t1').length, 1);
-
-    await tester.tap(find.byKey(const Key('sheet_settle')));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, contains('settle:p1:115.0'));
-    expect(repo.calls.where((c) => c == 'getPhysical:t1').length, 2);
-    expect(find.byKey(const Key('table_sheet')), findsNothing);
-    expect(find.byKey(const Key('table_p1')), findsOneWidget);
-  });
-
-  testWidgets('a status edit keeps the live session card', (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-          id: 'p1',
-          tableTypeId: 't1',
-          code: 'IN-1',
-          seats: 4,
-          status: 'available',
-          x: 0.4,
-          y: 0.4,
-          openSession: PanelSessionSummary(
-            id: 's1',
-            code: 'AB12',
-            guests: 2,
-            total: 115,
-            paid: 0,
-          ),
-        ),
-      ];
-    await _pump(tester, repo);
-
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('sheet_toggle')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sheet_toggle')));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, contains('status:p1:unavailable'));
-    expect(find.byKey(const Key('sheet_session')), findsOneWidget);
-    expect(find.text('AB12'), findsOneWidget);
-  });
-
-  testWidgets('view-only staff see the live session but cannot settle it',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-          id: 'p1',
-          tableTypeId: 't1',
-          code: 'IN-1',
-          seats: 4,
-          status: 'available',
-          x: 0.4,
-          y: 0.4,
-          openSession: PanelSessionSummary(
-            id: 's1',
-            code: 'AB12',
-            status: 'open',
-            guests: 2,
-            total: 115,
-            paid: 0,
-            pendingRequests: 0,
-          ),
-        ),
-      ];
-    await _pump(tester, repo, venue: _viewerVenue);
-
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('sheet_session')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_settle')), findsNothing);
-  });
-
-  testWidgets('view-only staff get no edit toggle, save, add or sheet actions',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', x: 0.4, y: 0.4),
-      ];
-    await _pump(tester, repo, venue: _viewerVenue);
-
-    expect(find.byKey(const Key('mode_edit')), findsNothing);
-    expect(find.byKey(const Key('mode_view')), findsNothing);
-    expect(find.byKey(const Key('save_floor')), findsNothing);
-    expect(find.byKey(const Key('add_table')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('table_sheet')), findsOneWidget);
-    expect(find.byKey(const Key('sheet_edit')), findsNothing);
-    expect(find.byKey(const Key('sheet_toggle')), findsNothing);
-    expect(find.byKey(const Key('sheet_delete')), findsNothing);
-  });
-
-  testWidgets('edit mode gates multi-select and bulk zone/status on the repo',
-      (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', x: 0.3, y: 0.3),
-        const PanelPhysicalTable(
-            id: 'p2', tableTypeId: 't1', code: 'IN-2', seats: 4,
-            status: 'available', x: 0.6, y: 0.3),
-        const PanelPhysicalTable(
-            id: 'p3', tableTypeId: 't1', code: 'IN-3', seats: 4,
-            status: 'available', zone: 'Terrace', x: 0.6, y: 0.7),
-      ];
-    await _pump(tester, repo);
-
-    expect(find.byKey(const Key('add_table')), findsNothing);
-    expect(find.byKey(const Key('select_toggle')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('mode_edit')));
-    await tester.pumpAndSettle();
     expect(find.byKey(const Key('add_table')), findsOneWidget);
-    expect(find.byKey(const Key('select_toggle')), findsOneWidget);
-    expect(find.byKey(const Key('bulk_bar')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('select_toggle')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('table_p2')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('bulk_bar')), findsOneWidget);
-    expect(find.byKey(const Key('selected_p1')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('bulk_zone_Terrace')));
-    await tester.pumpAndSettle();
-    expect(repo.calls, contains('update:p1:-:-:Terrace'));
-    expect(repo.calls, contains('update:p2:-:-:Terrace'));
-
-    await tester.tap(find.byKey(const Key('bulk_status_inactive')));
-    await tester.pumpAndSettle();
-    expect(repo.calls, contains('status:p1:inactive'));
-    expect(repo.calls, contains('status:p2:inactive'));
+    expect(find.byKey(const Key('arrange_mode')), findsOneWidget);
+    expect(find.byKey(const Key('select_tables')), findsOneWidget);
+    expect(find.byKey(const Key('batch_qr')), findsOneWidget);
   });
 
-  testWidgets('delete flow asks for confirmation and only then hits the repo',
+  testWidgets('read-only staff get no edit, arrange, add or bulk affordances',
       (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', x: 0.4, y: 0.4),
-        const PanelPhysicalTable(
-            id: 'p2', tableTypeId: 't1', code: 'IN-2', seats: 4,
-            status: 'available', x: 0.7, y: 0.7),
-      ];
+    await _pump(tester, _FakeTablesRepo(), venue: _viewerVenue);
+
+    expect(find.byKey(const Key('add_table')), findsNothing);
+    expect(find.byKey(const Key('arrange_mode')), findsNothing);
+    expect(find.byKey(const Key('select_tables')), findsNothing);
+    expect(find.byKey(const Key('batch_qr')), findsOneWidget);
+
+    await _tapVisible(tester, find.byKey(const Key('floor_t1')));
+    expect(find.byKey(const Key('edit_table')), findsNothing);
+    expect(find.byKey(const Key('delete_table')), findsNothing);
+  });
+
+  testWidgets('handling a guest ask clears it from the rail and the card',
+      (tester) async {
+    final repo = _FakeTablesRepo();
     await _pump(tester, repo);
 
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sheet_delete')));
-    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('handle_req1')));
 
-    expect(find.byKey(const Key('delete_confirm')), findsOneWidget);
-    expect(repo.calls, isNot(contains('delete:p1')));
-
-    await tester.tap(find.byKey(const Key('delete_confirm_no')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('table_sheet')), findsOneWidget);
-    expect(repo.calls, isNot(contains('delete:p1')));
-
-    await tester.tap(find.byKey(const Key('sheet_delete')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('delete_confirm_yes')));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, contains('delete:p1'));
-    expect(find.byKey(const Key('table_p1')), findsNothing);
-    expect(find.byKey(const Key('table_p2')), findsOneWidget);
+    expect(repo.calls, contains('handle:t1:req1'));
+    expect(find.byKey(const Key('attention_rail')), findsNothing);
+    expect(find.text('Needs attention'), findsNothing);
   });
 
-  testWidgets('edit form posts code/seats/zone through updatePhysicalTable',
+  testWidgets('floor/list switch renders dense rows, filters and search',
       (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', zone: 'Indoor', x: 0.4, y: 0.4),
-      ];
+    final repo = _FakeTablesRepo();
     await _pump(tester, repo);
 
-    await tester.tap(find.byKey(const Key('table_p1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sheet_edit')));
-    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('view_list')));
+    expect(find.byKey(const Key('table_row_t1')), findsOneWidget);
+    expect(find.byKey(const Key('table_row_t2')), findsOneWidget);
+    expect(find.byKey(const Key('floor_canvas')), findsNothing);
 
-    expect(find.byKey(const Key('form_submit')), findsOneWidget);
-    await tester.enterText(find.byKey(const Key('form_code')), 'IN-9');
-    await tester.enterText(find.byKey(const Key('form_seats')), '7');
-    await tester.tap(find.byKey(const Key('form_submit')));
+    // Search is a real filter, not decoration.
+    await tester.enterText(
+      find.byKey(const Key('table_search')),
+      'sara',
+    );
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('table_row_t1')), findsNothing);
+    expect(find.byKey(const Key('table_row_t3')), findsOneWidget);
 
-    expect(repo.calls, contains('update:p1:IN-9:7:Indoor'));
+    await _tapVisible(tester, find.byKey(const Key('clear_search')));
+    expect(find.byKey(const Key('table_row_t1')), findsOneWidget);
   });
 
-  testWidgets('add-table form creates through createPhysicalTable',
+  testWidgets('the sheet shows the QR, the live ticket, the note and the bill',
       (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', x: 0.4, y: 0.4),
-      ];
+    final repo = _FakeTablesRepo();
     await _pump(tester, repo);
 
-    await tester.tap(find.byKey(const Key('mode_edit')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('add_table')));
-    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('floor_t1')));
 
-    await tester.enterText(find.byKey(const Key('form_code')), 'NEW-1');
-    await tester.enterText(find.byKey(const Key('form_seats')), '2');
-    await tester.tap(find.byKey(const Key('form_submit')));
-    await tester.pumpAndSettle();
-
-    expect(repo.calls, contains('create:t1:NEW-1:2:null'));
+    expect(find.byKey(const Key('table_qr_image')), findsOneWidget);
+    expect(find.text('HYJQ'), findsOneWidget);
+    expect(find.text('ORD-7212'), findsOneWidget);
+    expect(find.text('Chicken Kabsa'), findsOneWidget);
+    expect(find.text('Extra saffron'), findsOneWidget);
+    expect(find.textContaining('Allergy: nuts'), findsOneWidget);
+    expect(find.text('133.40 SAR'), findsWidgets);
+    expect(find.byKey(const Key('settle_table')), findsOneWidget);
   });
 
-  test('CRUD cubit calls hit the fake repo with the right args', () async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', zone: 'Indoor'),
-      ];
-    final cubit = TablesPanelCubit(repo, restaurantId: 'r1');
-    addTearDown(cubit.close);
-    await cubit.load();
-
-    await cubit.createTable(code: 'N1', seats: 5, zone: 'Terrace');
-    var loaded = cubit.state as TablesPanelLoaded;
-    expect(repo.calls, contains('create:t1:N1:5:Terrace'));
-    expect(loaded.tables.map((t) => t.code), contains('N1'));
-
-    await cubit.updateTable('p1', code: 'IN-1B', seats: 6, clearZone: true);
-    loaded = cubit.state as TablesPanelLoaded;
-    expect(repo.calls, contains('update:p1:IN-1B:6:null'));
-    final updated = loaded.tables.firstWhere((t) => t.id == 'p1');
-    expect(updated.code, 'IN-1B');
-    expect(updated.seats, 6);
-    expect(updated.zone, isNull);
-
-    await cubit.deleteTable('p1');
-    loaded = cubit.state as TablesPanelLoaded;
-    expect(repo.calls, contains('delete:p1'));
-    expect(loaded.tables.map((t) => t.id), isNot(contains('p1')));
-  });
-
-  test('snap math rounds to 0.05 steps and moveTable applies it', () async {
-    expect(TablesPanelCubit.snapToGrid(0.13), 0.15);
-    expect(TablesPanelCubit.snapToGrid(0.07), 0.05);
-    expect(TablesPanelCubit.snapToGrid(0.98), 1.0);
-    expect(TablesPanelCubit.snapToGrid(0.02), 0.0);
-
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', x: 0.31, y: 0.62),
-      ];
-    final cubit = TablesPanelCubit(repo, restaurantId: 'r1');
-    addTearDown(cubit.close);
-    // The cubit must hold the table before it can be moved: `moveTable` is a
-    // no-op while the state is still `TablesPanelInitial`.
-    await cubit.load();
-
-    cubit.moveTable('p1', 0.13, 0.97, snap: true);
-    var loaded = cubit.state as TablesPanelLoaded;
-    expect(loaded.tables.single.x, 0.15);
-    expect(loaded.tables.single.y, 0.95);
-
-    // free drag (view mode) keeps the raw value, clamped
-    cubit.moveTable('p1', 9.9, -0.4);
-    loaded = cubit.state as TablesPanelLoaded;
-    expect(loaded.tables.single.x, 1.0);
-    expect(loaded.tables.single.y, 0.0);
-  });
-
-  testWidgets('load failure shows the inline error and retry recovers',
+  testWidgets('settling confirms, calls the cash endpoint and closes the sheet',
       (tester) async {
-    final repo = _FakeTablesRepo()
-      ..types = [_type()]
-      ..failLoad = true
-      ..tables = [
-        const PanelPhysicalTable(
-            id: 'p1', tableTypeId: 't1', code: 'IN-1', seats: 4,
-            status: 'available', x: 0.4, y: 0.4),
-      ];
+    final repo = _FakeTablesRepo();
     await _pump(tester, repo);
 
-    expect(find.text('boom'), findsOneWidget);
-    expect(find.byType(ErrorStateView), findsOneWidget);
+    await _tapVisible(tester, find.byKey(const Key('floor_t1')));
+    await _tapVisible(tester, find.byKey(const Key('settle_table')));
 
-    await tester.tap(find.text('Retry'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ErrorStateView), findsNothing);
-    expect(find.byKey(const Key('table_p1')), findsOneWidget);
+    expect(find.textContaining('Record the bill as collected?'), findsOneWidget);
+    await _tapVisible(tester, find.byKey(const Key('confirm_settle')));
+
+    expect(repo.calls, contains('settle:t1'));
+    expect(find.byKey(const Key('table_qr_image')), findsNothing);
+    expect(find.byKey(const Key('floor_t1')), findsOneWidget);
   });
 
-  testWidgets('empty types show the composed empty state', (tester) async {
-    await _pump(tester, _FakeTablesRepo());
+  testWidgets('delete asks first, then removes the table', (tester) async {
+    final repo = _FakeTablesRepo();
+    await _pump(tester, repo);
+
+    await _tapVisible(tester, find.byKey(const Key('floor_t2')));
+    await _tapVisible(tester, find.byKey(const Key('delete_table')));
+
+    expect(find.text('Delete this table?'), findsOneWidget);
+    expect(repo.calls, isNot(contains('delete:t2')));
+
+    await _tapVisible(tester, find.byKey(const Key('confirm_delete_table')));
+    expect(repo.calls, contains('delete:t2'));
+    expect(find.byKey(const Key('floor_t2')), findsNothing);
+  });
+
+  testWidgets('open orders is offered from the sheet when the shell wires it',
+      (tester) async {
+    var opened = false;
+    await _pump(tester, _FakeTablesRepo(), onOpenOrders: () => opened = true);
+
+    await _tapVisible(tester, find.byKey(const Key('floor_t1')));
+    await _tapVisible(tester, find.byKey(const Key('open_orders')));
+
+    expect(opened, isTrue);
+  });
+
+  testWidgets('batch QR screen loads one card per table', (tester) async {
+    final repo = _FakeTablesRepo();
+    await _pump(tester, repo);
+
+    await _tapVisible(tester, find.byKey(const Key('batch_qr')));
+
+    expect(find.byType(TableQrBatchScreen), findsOneWidget);
+    expect(find.byKey(const Key('qr_batch_grid')), findsOneWidget);
+    expect(find.byKey(const Key('qr_card_t1')), findsOneWidget);
+    expect(find.byKey(const Key('qr_card_t2')), findsOneWidget);
+    expect(find.byKey(const Key('print_all_qr')), findsOneWidget);
+    expect(repo.calls, contains('qr:t1'));
+    expect(repo.calls, contains('qr:t2'));
+  });
+
+  testWidgets('empty floor explains the next step and offers add', (tester) async {
+    final repo = _FakeTablesRepo(
+      floor: _floor(tables: [], reservations: []),
+    );
+    await _pump(tester, repo);
+
     expect(find.text('No tables yet'), findsOneWidget);
+    expect(find.byKey(const Key('empty_add_table')), findsOneWidget);
+  });
+
+  testWidgets('error state retries into the floor', (tester) async {
+    final repo = _FakeTablesRepo()..failNextLoad = true;
+    await _pump(tester, repo);
+
+    expect(find.byType(ErrorStateView), findsOneWidget);
+    expect(find.text('The floor could not be loaded'), findsOneWidget);
+
+    await _tapVisible(tester, find.text('Retry'));
+
+    expect(find.byType(ErrorStateView), findsNothing);
+    expect(find.byKey(const Key('floor_canvas')), findsOneWidget);
   });
 }
