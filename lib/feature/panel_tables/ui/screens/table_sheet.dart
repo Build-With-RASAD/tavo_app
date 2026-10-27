@@ -421,10 +421,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     // One card shell for the whole sheet, exactly as the menu and the site
     // use it: `bg-card` on a hairline, 16 px radius, no ripple.
-    return TavoCard(
-      padding: padding ?? EdgeInsets.all(13.w),
-      child: child,
-    );
+    return TavoCard(padding: padding ?? EdgeInsets.all(13.w), child: child);
   }
 }
 
@@ -632,8 +629,9 @@ class _CompactButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color =
-        danger ? TavoColors.destructiveSolid : TavoColors.foreground;
+    final Color color = danger
+        ? TavoColors.destructiveSolid
+        : TavoColors.foreground;
     return TavoPressScale(
       child: Semantics(
         button: true,
@@ -700,9 +698,7 @@ class _ConfirmBody extends StatelessWidget {
       children: [
         Text(
           message,
-          style: TavoType.bodySmall.copyWith(
-            color: TavoColors.mutedForeground,
-          ),
+          style: TavoType.bodySmall.copyWith(color: TavoColors.mutedForeground),
         ),
         SizedBox(height: TavoSpace.xl),
         Row(
