@@ -59,14 +59,15 @@ Future<void> pumpUntil(
 }
 
 /// Wraps [child] in the same EasyLocalization + ScreenUtil + MaterialApp
-/// shell the real app uses (mirrors `lib/main.dart`), but forced to the
-/// English locale so text finders are deterministic.
-Widget appShell(Widget child) {
+/// shell the real app uses (mirrors `lib/main.dart`), forced to [locale] so
+/// text finders are deterministic. Defaults to English; tests that care about
+/// Arabic/RTL pass `locale: const Locale('ar')`.
+Widget appShell(Widget child, {Locale locale = const Locale('en')}) {
   return EasyLocalization(
     supportedLocales: const [Locale('en'), Locale('ar')],
     path: 'assets/translations',
     assetLoader: const PreloadedAssetLoader(),
-    startLocale: const Locale('en'),
+    startLocale: locale,
     fallbackLocale: const Locale('ar'),
     child: ScreenUtilInit(
       designSize: const Size(375, 812),

@@ -12,6 +12,9 @@ class SettingsPanelRepo {
 
   String _q(String restaurantId) => '?restaurantId=$restaurantId';
 
+  static Map<String, dynamic>? _mapOrNull(Object? value) =>
+      value is Map ? Map<String, dynamic>.from(value) : null;
+
   Future<
       ({
         List<WorkingDayEntry> workingHours,
@@ -23,20 +26,20 @@ class SettingsPanelRepo {
           .get('${ApiConstants.panelBase}/settings${_q(restaurantId)}');
       final payload = panelPayload(res.data) as Map<String, dynamic>;
       final hours = payload['workingHours'];
+      final celebration = _mapOrNull(payload['celebrationFeatures']);
       return (
         workingHours: hours is List
             ? List<WorkingDayEntry>.from(hours
                 .whereType<Map<String, dynamic>>()
                 .map(WorkingDayEntry.fromJson))
             : const <WorkingDayEntry>[],
-        reservationSettings: payload['reservationSettings'] is Map
-            ? ReservationSettings.fromJson(Map<String, dynamic>.from(
-                payload['reservationSettings'] as Map))
-            : const ReservationSettings(),
-        celebrationFeatures: payload['celebrationFeatures'] is Map
-            ? Map<String, dynamic>.from(
-                payload['celebrationFeatures'] as Map)
-            : const <String, dynamic>{},
+        // The screen edits booking rules as one form, so the reservation half
+        // is returned with the celebration half already folded in. The raw
+        // celebration map stays in the record for callers that want it.
+        reservationSettings: ReservationSettings.fromJson(
+          _mapOrNull(payload['reservationSettings']) ?? const {},
+        ).withCelebration(celebration),
+        celebrationFeatures: celebration ?? const <String, dynamic>{},
       );
     } on DioException catch (e) {
       throw parseDioError(e);
@@ -66,14 +69,20 @@ class SettingsPanelRepo {
   Future<ReservationSettings> updateReservationSettings(
       String restaurantId, ReservationSettings rs) async {
     try {
+      // One request, both halves: `PUT /settings` replaces the reservation
+      // object wholesale, so a body carrying only the fields the old screen
+      // knew about used to reset the other six to their schema defaults.
       final res = await _api.put(
         '${ApiConstants.panelBase}/settings${_q(restaurantId)}',
-        data: {'reservationSettings': rs.toJson()},
+        data: {
+          'reservationSettings': rs.toReservationJson(),
+          'celebrationFeatures': rs.toCelebrationJson(),
+        },
       );
       final payload = panelPayload(res.data) as Map<String, dynamic>;
-      final out = payload['reservationSettings'] ?? payload;
-      return ReservationSettings.fromJson(
-          Map<String, dynamic>.from(out as Map));
+      final saved = _mapOrNull(payload['reservationSettings']) ?? payload;
+      return ReservationSettings.fromJson(saved)
+          .withCelebration(_mapOrNull(payload['celebrationFeatures']));
     } on DioException catch (e) {
       throw parseDioError(e);
     }

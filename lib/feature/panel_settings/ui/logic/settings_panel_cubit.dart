@@ -73,6 +73,7 @@ class SettingsPanelCubit extends Cubit<SettingsPanelState> {
         availability: _seedDefaults(saved),
         saving: false,
         clearError: true,
+        lastSavedAt: DateTime.now(),
       ));
     } catch (e) {
       if (isClosed) return;
@@ -87,7 +88,12 @@ class SettingsPanelCubit extends Cubit<SettingsPanelState> {
     try {
       final saved = await _repo.updateReservationSettings(restaurantId, rs);
       if (isClosed) return;
-      emit(s.copyWith(rs: saved, saving: false, clearError: true));
+      emit(s.copyWith(
+        rs: saved,
+        saving: false,
+        clearError: true,
+        lastSavedAt: DateTime.now(),
+      ));
     } catch (e) {
       if (isClosed) return;
       emit(s.copyWith(saving: false, actionError: _message(e)));

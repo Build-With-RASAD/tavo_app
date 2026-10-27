@@ -20,6 +20,7 @@ class SettingsPanelLoaded extends SettingsPanelState {
     required this.availability,
     this.saving = false,
     this.actionError,
+    this.lastSavedAt,
   });
 
   final List<WorkingDayEntry> days;
@@ -28,12 +29,18 @@ class SettingsPanelLoaded extends SettingsPanelState {
   final bool saving;
   final String? actionError;
 
+  /// When the last successful save landed. `null` until this screen saves
+  /// something in this session — it is a receipt for the user's action, not a
+  /// claim about when the venue was last edited.
+  final DateTime? lastSavedAt;
+
   SettingsPanelLoaded copyWith({
     List<WorkingDayEntry>? days,
     ReservationSettings? rs,
     List<WorkingDayEntry>? availability,
     bool? saving,
     String? actionError,
+    DateTime? lastSavedAt,
     bool clearError = false,
   }) =>
       SettingsPanelLoaded(
@@ -42,6 +49,7 @@ class SettingsPanelLoaded extends SettingsPanelState {
         availability: availability ?? this.availability,
         saving: saving ?? this.saving,
         actionError: clearError ? null : actionError ?? this.actionError,
+        lastSavedAt: lastSavedAt ?? this.lastSavedAt,
       );
 }
 
